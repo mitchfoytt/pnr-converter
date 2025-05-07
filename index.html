@@ -81,9 +81,9 @@
       font-size: 12px;
     }
     td img {
-      width: 60px;
+      width: 100px;
       height: auto;
-      max-height: 20px;
+      max-height: 35px;
       object-fit: contain;
       vertical-align: middle;
     }
@@ -155,7 +155,7 @@
     </div>
   </div>
 </div>
-<div class="output-container" style="display: none; margin-top: 24px; padding: 16px; border: 1px solid #d0d3d6; border-radius: 6px;">
+<div class="output-container container" style="display: none; margin-top: 24px;">
   <div style="max-height: 500px; overflow-y: auto;">
     <div id="flightTableWrapper"></div>
   </div>
@@ -539,12 +539,10 @@
 
     // Explicitly set fixed dimensions for airline logos in copied table as inline style attribute (stricter for email compatibility)
     clone.querySelectorAll("td img").forEach(el => {
-      el.setAttribute(
-        "style",
-        "width:60px; height:auto; max-height:20px; vertical-align:middle; object-fit:contain; display:inline-block; margin:0; padding:0; border:0; line-height:1; image-rendering:auto;"
-      );
-      el.setAttribute("width", "60");
+      el.removeAttribute("style");
       el.removeAttribute("height");
+      el.setAttribute("width", "100");
+      el.setAttribute("style", "display:inline-block; vertical-align:middle; object-fit:contain; max-height:50px;");
     });
 
     // Prepare hidden container
