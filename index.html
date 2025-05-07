@@ -242,12 +242,10 @@
       optionsDiv.style = "margin-bottom: 16px; padding: 12px; border: 1px solid #ccc; border-radius: 6px;";
       optionsDiv.innerHTML = `
   <h4 style="margin-top: 0;">Formatting Options</h4>
-  <div class="checkmark" style="display: flex; align-items: center;">
-    <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
-      <input type="checkbox" id="styleToggle" checked />
-      <span style="white-space: nowrap;">Include Itinerary Summary</span>
-    </label>
-  </div>
+  <label class="checkmark" style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px;">
+    <input type="checkbox" id="styleToggle" checked class="missive-checkbox" />
+    <span style="white-space: nowrap;">Include Itinerary Summary</span>
+  </label>
 `;
       document.querySelector(".output-container").prepend(optionsDiv);
       document.getElementById("styleToggle").addEventListener("change", () => {
