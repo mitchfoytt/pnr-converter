@@ -241,12 +241,12 @@
       optionsDiv.className = "options-container";
       optionsDiv.style = "margin-bottom: 16px; padding: 12px; border: 1px solid #ccc; border-radius: 6px;";
       optionsDiv.innerHTML = `
-        <h4 style="margin-top: 0;">Formatting Options</h4>
-        <label class="checkmark" style="font-size: 14px;">
-          <input type="checkbox" id="styleToggle" checked />
-          Include Itinerary Summary
-        </label>
-      `;
+  <h4 style="margin-top: 0;">Formatting Options</h4>
+  <label class="checkmark" style="font-size: 14px; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;">
+    <input type="checkbox" id="styleToggle" checked />
+    <span>Include Itinerary Summary</span>
+  </label>
+`;
       document.querySelector(".output-container").prepend(optionsDiv);
       document.getElementById("styleToggle").addEventListener("change", () => {
         renderFlightTableFromInternalFormat({ result: { itinerary: formattedFlights } }, "", passengerNames);
