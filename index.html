@@ -36,26 +36,36 @@
     <div style="background: white; border: 1px solid var(--base-color-neutral--300); padding: 12px; border-radius: 6px;">
       <textarea id="pnrInput" class="input" rows="6" placeholder="Paste PNR here..." style="width: 100%; border: none; outline: none; resize: vertical;"></textarea>
     </div>
-    <!-- Button -->
-    <button id="submitBtn" class="button button-async">
-      <span class="button-async-label">Convert PNR</span>
-      <div class="loading-icon">
-        <i class="icon icon-circle" style="width: 24px; height: 24px;">
-          <svg style="width: 24px; height: 24px;">
-            <use xlink:href="#circle" />
-          </svg>
-        </i>
-      </div>
-    </button>
+    <div class="columns-vertical" style="gap: 12px; align-items: start;">
+      <!-- Button -->
+      <button id="submitBtn" class="button button-async">
+        <span class="button-async-label">Convert PNR</span>
+        <div class="loading-icon">
+          <i class="icon icon-circle" style="width: 24px; height: 24px;">
+            <svg style="width: 24px; height: 24px;">
+              <use xlink:href="#circle" />
+            </svg>
+          </i>
+        </div>
+      </button>
+
+      <button id="copyBtn" class="button button-async" style="display: none; margin-top: 12px;">
+        <span class="button-async-label">Copy Table</span>
+        <div class="loading-icon">
+          <i class="icon icon-circle" style="width: 24px; height: 24px;">
+            <svg style="width: 24px; height: 24px;">
+              <use xlink:href="#circle" />
+            </svg>
+          </i>
+        </div>
+      </button>
+    </div>
   </div>
 
   <!-- Output Placeholder -->
   <div id="output" class="text-small" style="display: none; white-space: pre-wrap; border: 1px solid var(--base-color-neutral--300); background: white; padding: 12px; border-radius: 6px; min-height: 80px; margin-top: 16px;">
     Output will appear here...
   </div>
-  <button id="copyBtn" class="button" style="display: none; margin-top: 12px; align-self: start;">
-    Copy Table
-  </button>
 
 </script>
   <script>
@@ -78,11 +88,13 @@
           submitBtn.classList.remove('button-async--loading');
 
           copyBtn.onclick = () => {
+            copyBtn.classList.add('button-async--loading');
             navigator.clipboard.writeText(output.textContent)
               .then(() => {
-                copyBtn.textContent = 'Copied!';
+                copyBtn.classList.remove('button-async--loading');
+                copyBtn.querySelector('.button-async-label').textContent = 'Copied!';
                 setTimeout(() => {
-                  copyBtn.textContent = 'Copy Table';
+                  copyBtn.querySelector('.button-async-label').textContent = 'Copy Table';
                 }, 1500);
               });
           };
