@@ -16,11 +16,16 @@
       border: 1px solid #d0d3d6;
       padding: 16px;
       border-radius: 6px;
-      max-width: 700px;
+      max-width: 100%;
+    }
+    @media (max-width: 600px) {
+      .container {
+        padding: 12px;
+      }
     }
     textarea.input {
       width: 100%;
-      border: none;
+      border: 1px solid var(--base-color-neutral--300, #d0d3d6);
       outline: none;
       resize: vertical;
       padding: 12px;
@@ -29,8 +34,8 @@
       font-size: 14px;
     }
     .button {
-      background-color: #2266ed;
-      color: white;
+      background-color: var(--base-color-brand--primary, #2266ed);
+      color: var(--base-color-foreground-on-primary, white);
       border: none;
       padding: 10px 16px;
       border-radius: 6px;
@@ -43,6 +48,21 @@
     .button:focus {
       outline: none;
       box-shadow: 0 0 0 2px rgba(34, 102, 237, 0.3);
+    }
+    .button:hover {
+      background-color: var(--base-color-brand--primary-dark, #1a50c1);
+      color: var(--base-color-foreground-on-primary, white);
+    }
+    .button-async,
+    .button-async:hover {
+      background-color: var(--base-color-brand--primary, #2266ed) !important;
+      color: var(--base-color-foreground-on-primary, white) !important;
+    }
+    .button-async--loading,
+    .button-async--loading:hover {
+      opacity: 1 !important;
+      background-color: var(--base-color-brand--primary-dark, #1a50c1) !important;
+      color: var(--base-color-foreground-on-primary, white) !important;
     }
     table {
       border-collapse: collapse;
@@ -66,25 +86,77 @@
       object-fit: contain;
       vertical-align: middle;
     }
+</style>
+  <style>
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #1e1e1e;
+        color: #ddd;
+      }
+      .container,
+      .output-container {
+        background-color: #2b2b2b;
+        border-color: #444;
+      }
+      textarea.input {
+        background-color: #333;
+        color: #eee;
+      }
+      .button {
+        background-color: #3a6ee8;
+        color: white;
+      }
+      .button:hover {
+        background-color: #2e59c5;
+      }
+      table {
+        border-color: #555;
+      }
+      th {
+        background-color: #444;
+        color: #eee;
+      }
+      td {
+        color: #ddd;
+      }
+      td img {
+        filter: brightness(0.9);
+      }
+    }
   </style>
 </head>
 <body>
-<div class="container">
-  <div class="missive-integration">
+<div class="missive-integration">
+  <div class="container">
     <h3 class="text-xlarge text-800">Travel Tailor - PNR Converter</h3>
-    <textarea id="pnrInput" class="input" rows="1" style="width: 400px; height: 200px;" placeholder="Enter PNR here"></textarea>
-    <br>
-    <br>
-    <button class="button button-async" id="submitBtn" onclick="fetchFlightData()" style="margin-top: 1em; padding: 10px 16px; font-size: 14px; background-color: #007aff; color: white; border: none; border-radius: 4px;" data-loading="Converting…" data-state="default">
-      <span class="button-async__label">Convert PNR</span>
-    </button>
-    <div class="output-container" style="margin-top: 24px; padding: 16px; background: #fff; border: 1px solid #d0d3d6; border-radius: 6px;">
-      <div id="flightTableWrapper"></div>
+    <textarea id="pnrInput" class="input" rows="8" style="width: 100%; height: 200px;" placeholder="Enter PNR here"></textarea>
+    <div style="display: flex; gap: 12px; margin-top: 1em;">
+      <button class="button button-async" id="submitBtn" onclick="fetchFlightData()" data-loading="Converting…" data-state="default">
+        <span><span class="button-async-label">Convert PNR</span></span>
+        <div class="loading-icon">
+          <i class="icon icon-circle" style="width: 24px; height: 24px;">
+            <svg style="width: 24px; height: 24px;">
+              <use xlink:href="#circle" />
+            </svg>
+          </i>
+        </div>
+      </button>
+      <button class="button button-async" id="copyButton" onclick="copyTableToClipboard()" style="display:none;">
+        <span><span class="button-async-label">Copy Table</span></span>
+        <div class="loading-icon">
+          <i class="icon icon-circle" style="width: 24px; height: 24px;">
+            <svg style="width: 24px; height: 24px;">
+              <use xlink:href="#circle" />
+            </svg>
+          </i>
+        </div>
+      </button>
     </div>
-    <button class="button button-async" id="copyButton" onclick="copyTableToClipboard()" style="display:none; margin-top: 1em; padding: 10px 16px; font-size: 14px; background-color: #007aff; color: white; border: none; border-radius: 4px;">
-      Copy Table
-    </button>
-    <div id="loadingSpinner" style="display:none; font-size: 14px; margin-top: 1em;">Loading...</div>
+  </div>
+</div>
+<div class="output-container" style="display: none; margin-top: 24px; padding: 16px; border: 1px solid #d0d3d6; border-radius: 6px;">
+  <div style="max-height: 500px; overflow-y: auto;">
+    <div id="flightTableWrapper"></div>
   </div>
 </div>
 
@@ -128,6 +200,7 @@
     const flights = apiData.data?.flights || [];
     if (!flights.length) {
       document.getElementById("flightTableWrapper").innerHTML = '<p style="color:red;">No flights found.</p>';
+      document.querySelector(".output-container").style.display = "block";
       return;
     }
 
@@ -162,6 +235,7 @@
     }));
 
     renderFlightTableFromInternalFormat({ result: { itinerary: formattedFlights } }, html, passengerNames);
+    document.querySelector(".output-container").style.display = "block";
   }
 
   function renderFlightTableFromInternalFormat(data, preTableHtml = "", passengerNames = []) {
@@ -438,21 +512,50 @@
   }
 
   function copyTableToClipboard() {
+    const copyBtn = document.getElementById("copyButton");
+    copyBtn.classList.add("button-async--loading");
     const wrapper = document.getElementById("flightTableWrapper");
     if (!wrapper) return;
 
+    // Clone and apply light-mode styles
+    const clone = wrapper.cloneNode(true);
+    clone.querySelectorAll("table, th, td").forEach(el => {
+      el.style.backgroundColor = "#fff";
+      el.style.color = "#000";
+      el.style.borderColor = "#333";
+    });
+    // Apply light-mode styles to all text elements (headings, paragraphs, etc)
+    clone.querySelectorAll("*").forEach(el => {
+      el.style.color = "#000";
+      if (el.tagName.toLowerCase() === "p" || el.tagName.toLowerCase() === "h3") {
+        el.style.backgroundColor = "#fff";
+      }
+    });
+
+    // Prepare hidden container
+    const hiddenDiv = document.createElement("div");
+    hiddenDiv.style.position = "fixed";
+    hiddenDiv.style.top = "-9999px";
+    hiddenDiv.appendChild(clone);
+    document.body.appendChild(hiddenDiv);
+
     const range = document.createRange();
-    range.selectNode(wrapper);
+    range.selectNode(clone);
     const selection = window.getSelection();
     selection.removeAllRanges();
     selection.addRange(range);
 
     try {
       document.execCommand("copy");
-      selection.removeAllRanges();
     } catch (err) {
       console.error("Failed to copy table.", err);
     }
+
+    selection.removeAllRanges();
+    document.body.removeChild(hiddenDiv);
+    setTimeout(() => {
+      copyBtn.classList.remove("button-async--loading");
+    }, 600);
   }
 
   function fetchFlightData() {
@@ -462,9 +565,7 @@
       return;
     }
     const submitBtn = document.getElementById("submitBtn");
-    submitBtn.className = "button is-primary button-async";
-    submitBtn.setAttribute("data-state", "loading");
-    document.getElementById("loadingSpinner").style.display = "block";
+    submitBtn.classList.add("button-async--loading");
     document.getElementById("flightTableWrapper").innerHTML = "";
     // Hide copy button before making fetch call
     document.getElementById("copyButton").style.display = "none";
@@ -479,9 +580,7 @@
     })
     .then(res => res.json())
     .then(data => {
-      document.getElementById("loadingSpinner").style.display = "none";
-      submitBtn.className = "button is-primary";
-      submitBtn.setAttribute("data-state", "default");
+      submitBtn.classList.remove("button-async--loading");
       if (!data || !data.data || !data.data.flights) {
         document.getElementById("flightTableWrapper").innerHTML = '<p style="color:red;">Invalid or incomplete PNR response.</p>';
         return;
@@ -489,9 +588,7 @@
       renderFlightTable(data);
     })
     .catch(err => {
-      document.getElementById("loadingSpinner").style.display = "none";
-      submitBtn.className = "button is-primary";
-      submitBtn.setAttribute("data-state", "default");
+      submitBtn.classList.remove("button-async--loading");
       console.error("Error:", err);
       document.getElementById("flightTableWrapper").innerHTML = '<p style="color:red;">Unexpected Error:<br>Load failed</p>';
     });
