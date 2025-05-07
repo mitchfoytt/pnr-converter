@@ -235,6 +235,24 @@
       operatedBy: f.operatedBy
     }));
 
+    // Add style toggle if not present
+    if (!document.getElementById("styleToggleContainer")) {
+      const optionsDiv = document.createElement("div");
+      optionsDiv.className = "options-container";
+      optionsDiv.style = "margin-bottom: 16px; padding: 12px; border: 1px solid #ccc; border-radius: 6px;";
+      optionsDiv.innerHTML = `
+        <h4 style="margin-top: 0;">Formatting Options</h4>
+        <label class="checkmark" style="font-size: 14px;">
+          <input type="checkbox" id="styleToggle" checked />
+          Include Itinerary Summary
+        </label>
+      `;
+      document.querySelector(".output-container").prepend(optionsDiv);
+      document.getElementById("styleToggle").addEventListener("change", () => {
+        renderFlightTableFromInternalFormat({ result: { itinerary: formattedFlights } }, "", passengerNames);
+      });
+    }
+
     renderFlightTableFromInternalFormat({ result: { itinerary: formattedFlights } }, html, passengerNames);
     document.querySelector(".output-container").style.display = "block";
   }
@@ -245,8 +263,11 @@
     // Ensure preTableHtml is only added once and not overwritten.
     let html = preTableHtml;
 
+    // Check style toggle
+    const showSummaries = document.getElementById("styleToggle")?.checked !== false;
+
     // Build itinerary summary based strictly on the start and end of each journey as rendered in the "Flight 1", "Flight 2", etc. blocks
-    if (flights.length > 0) {
+    if (showSummaries && flights.length > 0) {
       const journeys = [];
       let journeyStartIndex = 0;
 
@@ -287,6 +308,7 @@
 
       html += `<h3 style="margin-bottom:0;">Itinerary: ${summary}</h3>`;
     }
+
     if (passengerNames.length === 1) {
       html += `<p><strong>Traveller:</strong><br>${passengerNames[0]}</p>`;
     } else if (passengerNames.length > 1) {
@@ -307,63 +329,56 @@
 
       // Removed old from and totalDuration calculation
 
-      const journeySummaries = [];
-      let journeyStartIndex = 0;
-
-      for (let i = 0; i < group.flights.length; i++) {
-        const current = group.flights[i];
-        const next = group.flights[i + 1];
-
-        const lastArrival = new Date(`${current.arrival.date}T${current.arrival.time}`);
-
-        const shouldSplit = !next || (() => {
-          const nextDeparture = new Date(`${next.departure.date}T${next.departure.time}`);
-          const diffHrs = (nextDeparture - lastArrival) / 1000 / 60 / 60;
-          return diffHrs >= 24;
-        })();
-
-        if (shouldSplit) {
-          const journeyFlights = group.flights.slice(journeyStartIndex, i + 1);
-          const fromCity = journeyFlights[0].departure.city;
-          const toCity = journeyFlights[journeyFlights.length - 1].arrival.city;
-
-          let viaCity = "";
-          if (journeyFlights.length > 1) {
-            const stops = journeyFlights.slice(0, -1).map(f => f.arrival.city);
-            const uniqueStops = [...new Set(stops)];
-            if (uniqueStops.length === 1) {
-              viaCity = ` (via ${uniqueStops[0]})`;
-            } else if (uniqueStops.length === 2) {
-              viaCity = ` (via ${uniqueStops.join(" & ")})`;
-            } else if (uniqueStops.length > 2) {
-              viaCity = ` (via ${uniqueStops.slice(0, -1).join(", ")} & ${uniqueStops.at(-1)})`;
+      let journeySummaries = [];
+      if (showSummaries) {
+        journeySummaries = [];
+        let journeyStartIndex = 0;
+        for (let i = 0; i < group.flights.length; i++) {
+          const current = group.flights[i];
+          const next = group.flights[i + 1];
+          const lastArrival = new Date(`${current.arrival.date}T${current.arrival.time}`);
+          const shouldSplit = !next || (() => {
+            const nextDeparture = new Date(`${next.departure.date}T${next.departure.time}`);
+            const diffHrs = (nextDeparture - lastArrival) / 1000 / 60 / 60;
+            return diffHrs >= 24;
+          })();
+          if (shouldSplit) {
+            const journeyFlights = group.flights.slice(journeyStartIndex, i + 1);
+            const fromCity = journeyFlights[0].departure.city;
+            const toCity = journeyFlights[journeyFlights.length - 1].arrival.city;
+            let viaCity = "";
+            if (journeyFlights.length > 1) {
+              const stops = journeyFlights.slice(0, -1).map(f => f.arrival.city);
+              const uniqueStops = [...new Set(stops)];
+              if (uniqueStops.length === 1) {
+                viaCity = ` (via ${uniqueStops[0]})`;
+              } else if (uniqueStops.length === 2) {
+                viaCity = ` (via ${uniqueStops.join(" & ")})`;
+              } else if (uniqueStops.length > 2) {
+                viaCity = ` (via ${uniqueStops.slice(0, -1).join(", ")} & ${uniqueStops.at(-1)})`;
+              }
             }
-          }
-
-          // Sum total time: flight durations + transit
-          let totalMin = 0;
-          for (let j = 0; j < journeyFlights.length; j++) {
-            const durMatch = journeyFlights[j].duration.match(/(\d+)h\s?(\d+)m/);
-            const flightMin = parseInt(durMatch[1]) * 60 + parseInt(durMatch[2]);
-            totalMin += flightMin;
-
-            // Add transit time if not last segment
-            if (j < journeyFlights.length - 1) {
-              const arr = new Date(`${journeyFlights[j].arrival.date}T${journeyFlights[j].arrival.time}`);
-              const dep = new Date(`${journeyFlights[j + 1].departure.date}T${journeyFlights[j + 1].departure.time}`);
-              const transitMin = Math.floor((dep - arr) / 60000);
-              totalMin += transitMin;
+            // Sum total time: flight durations + transit
+            let totalMin = 0;
+            for (let j = 0; j < journeyFlights.length; j++) {
+              const durMatch = journeyFlights[j].duration.match(/(\d+)h\s?(\d+)m/);
+              const flightMin = parseInt(durMatch[1]) * 60 + parseInt(durMatch[2]);
+              totalMin += flightMin;
+              // Add transit time if not last segment
+              if (j < journeyFlights.length - 1) {
+                const arr = new Date(`${journeyFlights[j].arrival.date}T${journeyFlights[j].arrival.time}`);
+                const dep = new Date(`${journeyFlights[j + 1].departure.date}T${journeyFlights[j + 1].departure.time}`);
+                const transitMin = Math.floor((dep - arr) / 60000);
+                totalMin += transitMin;
+              }
             }
+            const h = Math.floor(totalMin / 60);
+            const m = totalMin % 60;
+            journeySummaries.push(`Flight ${journeySummaries.length + 1}: ${fromCity} → ${toCity}${viaCity} – ${h}h ${m}m`);
+            journeyStartIndex = i + 1;
           }
-
-          const h = Math.floor(totalMin / 60);
-          const m = totalMin % 60;
-          journeySummaries.push(`Flight ${journeySummaries.length + 1}: ${fromCity} → ${toCity}${viaCity} – ${h}h ${m}m`);
-
-          journeyStartIndex = i + 1;
         }
       }
-
       const journeySummaryText = journeySummaries.map(s => `<div>${s}</div>`).join("");
 
       const headerRow = `
@@ -424,12 +439,11 @@
         journeyIndex = journeyCursor;
 
         let journeySummary = journeySummaries[journeyIndex];
-        if (journeySummaries.length === 1) {
+        if (showSummaries && journeySummaries.length === 1) {
           journeySummary = journeySummary.replace(/^Flight 1: /, "");
-        } else if (journeySummaries.length === 2) {
+        } else if (showSummaries && journeySummaries.length === 2) {
           const firstDepCity = group.flights[0].departure.city;
           const lastArrCity = group.flights[group.flights.length - 1].arrival.city;
-
           const splitIndexes = [];
           for (let i = 1; i < group.flights.length; i++) {
             const prevArr = new Date(`${group.flights[i - 1].arrival.date}T${group.flights[i - 1].arrival.time}`);
@@ -437,9 +451,7 @@
             const diffHrs = (currDep - prevArr) / 1000 / 60 / 60;
             if (diffHrs >= 24) splitIndexes.push(i);
           }
-
           const secondDepCity = group.flights[splitIndexes[0]]?.departure.city;
-
           if (firstDepCity === lastArrCity || firstDepCity === secondDepCity) {
             if (journeyIndex === 0) {
               journeySummary = journeySummary.replace(/^Flight 1: /, "Outbound: ");
@@ -464,12 +476,17 @@
             ${hasTransit ? "<th>Transit</th>" : ""}
           </tr>
         `;
-        const journeyHeader = isNewJourney ? `
-          <tr>
-            <td colspan="${hasTransit ? 11 : 10}" style="font-weight:bold; border: none; background: none;">${journeySummary}</td>
-          </tr>
-          ${headerRowSegmented}
-        ` : "";
+        // Always show header row for first flight, and for new journeys show summary if enabled
+        const journeyHeader = ((isNewJourney && showSummaries) || i === 0)
+          ? (showSummaries && isNewJourney
+            ? `
+                <tr>
+                  <td colspan="${hasTransit ? 11 : 10}" style="font-weight:bold; border: none; background: none;">${journeySummary}</td>
+                </tr>
+                ${headerRowSegmented}
+              `
+            : headerRowSegmented)
+          : "";
 
         rows += `
           ${journeyHeader}
