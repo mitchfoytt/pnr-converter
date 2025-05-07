@@ -26,11 +26,36 @@
       width: auto;
     }
   </style>
+  <script>
+    if (!window.Missive) {
+      document.body.classList.add('outside-missive');
+    }
+  </script>
+  <style>
+    .outside-missive .button.button-async {
+      background-color: #2266ed;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .outside-missive .button.button-async .loading-icon {
+      display: none;
+    }
+
+    .outside-missive .button.button-async.button-async--loading .loading-icon {
+      display: inline-block;
+    }
+  </style>
 </head>
 <body style="background-color: var(--missive-background-color); padding: 16px;">
 
   <!-- Heading -->
-  <h1 class="text-large" style="margin-bottom: 12px;">Travel Tailor - PNR Converter</h1>
+  <h1 class="text-large" style="margin-bottom: 12px;">PNR CONVERTER TESTING</h1>
 
   <div class="columns-vertical" style="gap: 12px;">
     <div style="background: white; border: 1px solid var(--base-color-neutral--300); padding: 12px; border-radius: 6px;">
@@ -38,7 +63,7 @@
     </div>
     <div class="columns-vertical" style="gap: 12px; align-items: start;">
       <!-- Button -->
-      <button id="submitBtn" class="button button-async">
+      <button id="submitBtn" class="button button-async" style="background-color: #2266ed; color: white;">
         <span class="button-async-label">Convert PNR</span>
         <div class="loading-icon">
           <i class="icon icon-circle" style="width: 24px; height: 24px;">
@@ -49,7 +74,7 @@
         </div>
       </button>
 
-      <button id="copyBtn" class="button button-async" style="display: none; margin-top: 12px;">
+      <button id="copyBtn" class="button button-async" style="display: none; margin-top: 12px; background-color: #2266ed; color: white;">
         <span class="button-async-label">Copy Table</span>
         <div class="loading-icon">
           <i class="icon icon-circle" style="width: 24px; height: 24px;">
