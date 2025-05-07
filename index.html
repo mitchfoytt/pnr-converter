@@ -81,9 +81,9 @@
       font-size: 12px;
     }
     td img {
-      height: 20px;
-      width: auto;
-      max-width: 60px;
+      width: 60px;
+      height: auto;
+      max-height: 20px;
       object-fit: contain;
       vertical-align: middle;
     }
@@ -541,10 +541,10 @@
     clone.querySelectorAll("td img").forEach(el => {
       el.setAttribute(
         "style",
-        "height:20px; width:auto; max-width:60px; vertical-align:middle; object-fit:contain; display:inline-block; margin:0; padding:0; border:0; line-height:1; image-rendering:auto;"
+        "width:60px; height:auto; max-height:20px; vertical-align:middle; object-fit:contain; display:inline-block; margin:0; padding:0; border:0; line-height:1; image-rendering:auto;"
       );
-      el.setAttribute("height", "20");
       el.setAttribute("width", "60");
+      el.removeAttribute("height");
     });
 
     // Prepare hidden container
