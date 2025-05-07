@@ -26,12 +26,13 @@
     textarea.input {
       width: 100%;
       border: 1px solid var(--base-color-neutral--300, #d0d3d6);
-      outline: none;
-      resize: vertical;
+      background-color: var(--base-color-surface-default, #fff);
+      color: inherit;
+      font-size: 14px;
       padding: 12px;
       border-radius: 6px;
-      background: #f9f9f9;
-      font-size: 14px;
+      resize: vertical;
+      font-family: inherit;
     }
     .button {
       background-color: var(--base-color-brand--primary, #2266ed);
@@ -142,7 +143,7 @@
         </div>
       </button>
       <button class="button button-async" id="copyButton" onclick="copyTableToClipboard()" style="display:none;">
-        <span><span class="button-async-label">Copy Table</span></span>
+        <span><span class="button-async__label">Copy Table</span></span>
         <div class="loading-icon">
           <i class="icon icon-circle" style="width: 24px; height: 24px;">
             <svg style="width: 24px; height: 24px;">
@@ -514,6 +515,10 @@
   function copyTableToClipboard() {
     const copyBtn = document.getElementById("copyButton");
     copyBtn.classList.add("button-async--loading");
+    // Set label to "Copied" and save original text
+    const labelSpan = copyBtn.querySelector(".button-async__label");
+    const originalText = labelSpan.textContent;
+    labelSpan.textContent = "Copied";
     const wrapper = document.getElementById("flightTableWrapper");
     if (!wrapper) return;
 
@@ -530,6 +535,16 @@
       if (el.tagName.toLowerCase() === "p" || el.tagName.toLowerCase() === "h3") {
         el.style.backgroundColor = "#fff";
       }
+    });
+
+    // Explicitly set fixed dimensions for airline logos in copied table as inline style attribute (stricter for email compatibility)
+    clone.querySelectorAll("td img").forEach(el => {
+      el.setAttribute(
+        "style",
+        "height:20px; width:auto; max-width:60px; vertical-align:middle; object-fit:contain; display:inline-block; margin:0; padding:0; border:0; line-height:1; image-rendering:auto;"
+      );
+      el.setAttribute("height", "20");
+      el.setAttribute("width", "60");
     });
 
     // Prepare hidden container
@@ -555,6 +570,7 @@
     document.body.removeChild(hiddenDiv);
     setTimeout(() => {
       copyBtn.classList.remove("button-async--loading");
+      labelSpan.textContent = originalText;
     }, 600);
   }
 
