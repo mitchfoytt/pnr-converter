@@ -20,17 +20,15 @@
 <body style="background-color: var(--missive-background-color); padding: 16px;">
 
   <!-- Heading -->
-  <h1 class="text-large" style="margin-bottom: 12px;">TEST Travel Tailor - PNR Converter</h1>
+  <h1 class="text-large" style="margin-bottom: 12px;">Travel Tailor - PNR Converter</h1>
 
   <div class="columns-vertical" style="gap: 12px;">
     <div style="background: white; border: 1px solid var(--base-color-neutral--300); padding: 12px; border-radius: 6px;">
       <textarea id="pnrInput" class="input" rows="6" placeholder="Paste PNR here..." style="width: 100%; border: none; outline: none; resize: vertical;"></textarea>
     </div>
     <!-- Button -->
-    <button id="submitBtn" class="button button-async" style="background-color: var(--missive-blue-color, #2266ed); color: white;">
-      <span>
-        <span class="button-async-label">Convert PNR</span>
-      </span>
+    <button id="submitBtn" class="button button-async">
+      <span class="button-async-label">Convert PNR</span>
       <div class="loading-icon">
         <i class="icon icon-circle" style="width: 24px; height: 24px;">
           <svg style="width: 24px; height: 24px;">
@@ -45,7 +43,7 @@
   <div id="output" class="text-small" style="display: none; white-space: pre-wrap; border: 1px solid var(--base-color-neutral--300); background: white; padding: 12px; border-radius: 6px; min-height: 80px; margin-top: 16px;">
     Output will appear here...
   </div>
-  <button id="copyBtn" class="button" style="display: none; margin-top: 12px; padding: 8px 14px; cursor: pointer; background-color: var(--missive-blue-color, #2266ed); color: white;">
+  <button id="copyBtn" class="button" style="display: none; margin-top: 12px;">
     Copy Table
   </button>
 
