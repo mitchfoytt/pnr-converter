@@ -1,467 +1,90 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>PNR Flight Table Preview</title>
-  <script src="https://integrations.missiveapp.com/missive.js"></script>
+  <meta charset="UTF-8" />
+  <title>Missive Iframe App</title>
+
+  <!-- Missive CSS + JS -->
   <link href="https://integrations.missiveapp.com/missive.css" rel="stylesheet">
+  <script src="https://integrations.missiveapp.com/missive.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-    }
-    table {
-      border-collapse: collapse;
-      width: 880px;
-      margin-top: 1em;
-    }
-    th, td {
-      border: 1px solid #333;
-      padding: 3px 5px;
-      text-align: left;
-      font-size: 12px;
-    }
-    th {
-      background-color: #eee;
-      font-size: 12px;
-    }
-    td img {
-      height: 20px;
-      width: auto;
-      max-width: 60px;
-      object-fit: contain;
-      vertical-align: middle;
+    :root {
+      --missive-background-color: #f5f6f7;
+      --base-color-brand--tt-green: #20c997;
+      --base-color-neutral--300: #d0d3d6;
+      --base-color-neutral--black: #1f1f1f;
+      --base-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
     }
   </style>
 </head>
-<body>
+<body style="background-color: var(--missive-background-color); padding: 16px;">
 
-<div class="missive-integration">
-  <h3 class="text-xlarge text-800">Travel Tailor - PNR Converter</h3>
+  <!-- Heading -->
+  <h1 class="text-large" style="margin-bottom: 12px;">Travel Tailor - PNR Converter</h1>
 
-  <textarea id="pnrInput" rows="1" style="width: 400px; height: 200px;" placeholder="Enter PNR here"></textarea>
-  <br>
-  <br>
-  <button class="button button-async" id="submitBtn" onclick="fetchFlightData()" style="margin-top: 1em; padding: 10px 16px; font-size: 14px; background-color: #007aff; color: white; border: none; border-radius: 4px;" data-loading="Converting…" data-state="default">
-    <span class="button-async__label">Convert PNR</span>
-  </button>
+  <div class="columns-vertical" style="gap: 12px;">
+    <div style="background: white; border: 1px solid var(--base-color-neutral--300); padding: 12px; border-radius: 6px;">
+      <textarea id="pnrInput" class="input" rows="6" placeholder="Paste PNR here..." style="width: 100%; border: none; outline: none; resize: vertical;"></textarea>
+    </div>
+    <!-- Button -->
+    <button id="submitBtn" class="button button-async" style="background-color: var(--missive-blue-color, #2266ed); color: white;">
+      <span>
+        <span class="button-async-label">Convert PNR</span>
+      </span>
+      <div class="loading-icon">
+        <i class="icon icon-circle" style="width: 24px; height: 24px;">
+          <svg style="width: 24px; height: 24px;">
+            <use xlink:href="#circle" />
+          </svg>
+        </i>
+      </div>
+    </button>
+  </div>
 
-  <div id="flightTableWrapper"></div>
-  <div id="loadingSpinner" style="display:none; font-size: 14px; margin-top: 1em;">Loading...</div>
-
-  <button class="button button-async" id="copyButton" onclick="copyTableToClipboard()" style="display:none; margin-top: 1em; padding: 10px 16px; font-size: 14px; background-color: #007aff; color: white; border: none; border-radius: 4px;">
+  <!-- Output Placeholder -->
+  <div id="output" class="text-small" style="display: none; white-space: pre-wrap; border: 1px solid var(--base-color-neutral--300); background: white; padding: 12px; border-radius: 6px; min-height: 80px; margin-top: 16px;">
+    Output will appear here...
+  </div>
+  <button id="copyBtn" class="button" style="display: none; margin-top: 12px; padding: 8px 14px; cursor: pointer; background-color: var(--missive-blue-color, #2266ed); color: white;">
     Copy Table
   </button>
-</div>
 
-<script>
-  function getAirlineLogo(iataCode) {
-    if (!iataCode) return "";
-    return `https://pnrexpert.b-cdn.net/images/airlines/${iataCode.toLowerCase()}.png`;
-  }
-
-  // Helper to get duration in hours and minutes
-  function calculateDuration(depDate, depTime, arrDate, arrTime) {
-    const dep = new Date(`${depDate}T${depTime}`);
-    const arr = new Date(`${arrDate}T${arrTime}`);
-    const diffMs = arr - dep;
-    const diffMin = Math.floor(diffMs / 60000);
-    const hours = Math.floor(diffMin / 60);
-    const minutes = diffMin % 60;
-    return `${hours}h ${minutes}m`;
-  }
-
-  // Helper to group flights into outbound/inbound based on direction
-  function groupFlightsByDirection(flights) {
-    const origin = flights[0]?.departure?.airport;
-    const groups = [{ label: "Outbound", flights: [] }];
-    let currentGroup = groups[0];
-
-    for (let i = 0; i < flights.length; i++) {
-      const f = flights[i];
-      const isReturn = f.departure.airport === origin && currentGroup.label !== "Inbound";
-      if (isReturn && i !== 0) {
-        currentGroup = { label: "Inbound", flights: [] };
-        groups.push(currentGroup);
-      }
-      currentGroup.flights.push(f);
-    }
-
-    return groups;
-  }
-
-  function renderFlightTable(apiData) {
-    const flights = apiData.data?.flights || [];
-    if (!flights.length) {
-      document.getElementById("flightTableWrapper").innerHTML = '<p style="color:red;">No flights found.</p>';
-      return;
-    }
-
-    // Extract passengers array
-    const passengers = apiData.data?.passengers || [];
-    // Build passenger name array
-    const passengerNames = passengers.map(p => p.name).filter(Boolean);
-    let html = "";
-
-    const formattedFlights = flights.map(f => ({
-      flightNumber: f.flightNumber,
-      airline: f.airlineName,
-      iataCode: f.iataCode,
-      bookingClass: f.bookingClass,
-      cabin: f.cabin,
-      departure: {
-        airport: f.departingFrom.airportCode,
-        city: f.departingFrom.cityName,
-        airportName: f.departingFrom.airportName || f.departingFrom.cityName,
-        date: f.departingFrom.time.split("T")[0],
-        time: f.departingFrom.time.split("T")[1].substring(0, 5)
-      },
-      arrival: {
-        airport: f.arrivingAt.airportCode,
-        city: f.arrivingAt.cityName,
-        airportName: f.arrivingAt.airportName || f.arrivingAt.cityName,
-        date: f.arrivingAt.time.split("T")[0],
-        time: f.arrivingAt.time.split("T")[1].substring(0, 5)
-      },
-      duration: `${f.flightDuration.hours}h ${f.flightDuration.minutes}m`,
-      operatedBy: f.operatedBy
-    }));
-
-    renderFlightTableFromInternalFormat({ result: { itinerary: formattedFlights } }, html, passengerNames);
-  }
-
-  function renderFlightTableFromInternalFormat(data, preTableHtml = "", passengerNames = []) {
-    const flights = data.result.itinerary;
-    const groups = groupFlightsByDirection(flights);
-    // Ensure preTableHtml is only added once and not overwritten.
-    let html = preTableHtml;
-
-    // Build itinerary summary based strictly on the start and end of each journey as rendered in the "Flight 1", "Flight 2", etc. blocks
-    if (flights.length > 0) {
-      const journeys = [];
-      let journeyStartIndex = 0;
-
-      for (let i = 0; i < flights.length; i++) {
-        const current = flights[i];
-        const next = flights[i + 1];
-
-        const lastArrival = new Date(`${current.arrival.date}T${current.arrival.time}`);
-
-        const shouldSplit = !next || (() => {
-          const nextDeparture = new Date(`${next.departure.date}T${next.departure.time}`);
-          const diffHrs = (nextDeparture - lastArrival) / 1000 / 60 / 60;
-          return diffHrs >= 24;
-        })();
-
-        if (shouldSplit) {
-          const journeyFlights = flights.slice(journeyStartIndex, i + 1);
-          const fromCity = journeyFlights[0].departure.city;
-          const toCity = journeyFlights[journeyFlights.length - 1].arrival.city;
-          journeys.push({ from: fromCity, to: toCity });
-          journeyStartIndex = i + 1;
-        }
-      }
-
-      // Build itinerary summary
-      let summary = "";
-      for (let i = 0; i < journeys.length; i++) {
-        const j = journeys[i];
-        if (i === 0) {
-          summary += `${j.from} → ${j.to}`;
-        } else {
-          const prev = journeys[i - 1];
-          const connector = (prev.to === j.from) ? " → " : " / ";
-          // Only show the 'from' city if different from the previous 'to'
-          summary += connector + (j.from !== prev.to ? `${j.from} → ` : "") + j.to;
-        }
-      }
-
-      html += `<h3 style="margin-bottom:0;">Itinerary: ${summary}</h3>`;
-    }
-    if (passengerNames.length === 1) {
-      html += `<p><strong>Traveller:</strong><br>${passengerNames[0]}</p>`;
-    } else if (passengerNames.length > 1) {
-      html += `<p><strong>Travellers:</strong><br>${passengerNames.join("<br>")}</p>`;
-    }
-
-    groups.forEach((group, gIndex) => {
-      const showCabin = group.flights.some(f => f.cabin);
-      const transitTimes = group.flights.map((f, i, arr) => {
-        if (i >= arr.length - 1) return null;
-        const currArrival = new Date(`${f.arrival.date}T${f.arrival.time}`);
-        const nextDeparture = new Date(`${arr[i + 1].departure.date}T${arr[i + 1].departure.time}`);
-        const diffMs = nextDeparture - currArrival;
-        const diffHrs = diffMs / 1000 / 60 / 60;
-        return diffHrs < 24 ? `${Math.floor(diffHrs)}h ${Math.round((diffHrs % 1) * 60)}m` : null;
-      });
-      const hasTransit = transitTimes.some(t => t !== null);
-
-      // Removed old from and totalDuration calculation
-
-      const journeySummaries = [];
-      let journeyStartIndex = 0;
-
-      for (let i = 0; i < group.flights.length; i++) {
-        const current = group.flights[i];
-        const next = group.flights[i + 1];
-
-        const lastArrival = new Date(`${current.arrival.date}T${current.arrival.time}`);
-
-        const shouldSplit = !next || (() => {
-          const nextDeparture = new Date(`${next.departure.date}T${next.departure.time}`);
-          const diffHrs = (nextDeparture - lastArrival) / 1000 / 60 / 60;
-          return diffHrs >= 24;
-        })();
-
-        if (shouldSplit) {
-          const journeyFlights = group.flights.slice(journeyStartIndex, i + 1);
-          const fromCity = journeyFlights[0].departure.city;
-          const toCity = journeyFlights[journeyFlights.length - 1].arrival.city;
-
-          let viaCity = "";
-          if (journeyFlights.length > 1) {
-            const stops = journeyFlights.slice(0, -1).map(f => f.arrival.city);
-            const uniqueStops = [...new Set(stops)];
-            if (uniqueStops.length === 1) {
-              viaCity = ` (via ${uniqueStops[0]})`;
-            } else if (uniqueStops.length === 2) {
-              viaCity = ` (via ${uniqueStops.join(" & ")})`;
-            } else if (uniqueStops.length > 2) {
-              viaCity = ` (via ${uniqueStops.slice(0, -1).join(", ")} & ${uniqueStops.at(-1)})`;
-            }
-          }
-
-          // Sum total time: flight durations + transit
-          let totalMin = 0;
-          for (let j = 0; j < journeyFlights.length; j++) {
-            const durMatch = journeyFlights[j].duration.match(/(\d+)h\s?(\d+)m/);
-            const flightMin = parseInt(durMatch[1]) * 60 + parseInt(durMatch[2]);
-            totalMin += flightMin;
-
-            // Add transit time if not last segment
-            if (j < journeyFlights.length - 1) {
-              const arr = new Date(`${journeyFlights[j].arrival.date}T${journeyFlights[j].arrival.time}`);
-              const dep = new Date(`${journeyFlights[j + 1].departure.date}T${journeyFlights[j + 1].departure.time}`);
-              const transitMin = Math.floor((dep - arr) / 60000);
-              totalMin += transitMin;
-            }
-          }
-
-          const h = Math.floor(totalMin / 60);
-          const m = totalMin % 60;
-          journeySummaries.push(`Flight ${journeySummaries.length + 1}: ${fromCity} → ${toCity}${viaCity} – ${h}h ${m}m`);
-
-          journeyStartIndex = i + 1;
-        }
-      }
-
-      const journeySummaryText = journeySummaries.map(s => `<div>${s}</div>`).join("");
-
-      const headerRow = `
-        <tr>
-          <th></th>
-          <th>Date</th>
-          <th>Airline</th>
-          <th>Flight No</th>
-          ${showCabin ? "<th>Cabin</th>" : ""}
-          <th>Depart</th>
-          <th>From</th>
-          <th>Arrive</th>
-          <th>At</th>
-          <th>Duration</th>
-          ${hasTransit ? "<th>Transit</th>" : ""}
-        </tr>
-      `;
-
-      // Only show group label if there is more than one group
-      const groupTitle = groups.length > 1 ? `<strong>${group.label}</strong><br>` : "";
-      html += `
-        <p>${groupTitle}</p>
-        <table>
-      `;
-
-      // Insert journey separator rows
-      let rows = "";
-      group.flights.forEach((f, i) => {
-        const logoIata = f.iataCode;
-        const logo = getAirlineLogo(logoIata);
-        const depDate = new Date(f.departure.date);
-        const formattedDate = depDate.toLocaleDateString("en-GB", {
-          weekday: "short", day: "numeric", month: "short"
-        });
-        // Only show the scheduled flight duration per row (do not add transit)
-        const duration = f.duration;
-        const cabinCell = showCabin ? `<td>${f.cabin || f.bookingClass}</td>` : "";
-
-        const isNewJourney = (i === 0 || (() => {
-          const prev = group.flights[i - 1];
-          const prevArr = new Date(`${prev.arrival.date}T${prev.arrival.time}`);
-          const thisDep = new Date(`${f.departure.date}T${f.departure.time}`);
-          return (thisDep - prevArr) / 1000 / 60 / 60 >= 24;
-        })());
-
-        let journeyIndex = 0;
-        let journeyCursor = 0;
-        for (let j = 0; j < i; j++) {
-          const prev = group.flights[j];
-          const next = group.flights[j + 1];
-          if (!next) break;
-          const prevArr = new Date(`${prev.arrival.date}T${prev.arrival.time}`);
-          const nextDep = new Date(`${next.departure.date}T${next.departure.time}`);
-          if ((nextDep - prevArr) / 1000 / 60 / 60 >= 24) {
-            journeyCursor++;
-          }
-        }
-        journeyIndex = journeyCursor;
-
-        let journeySummary = journeySummaries[journeyIndex];
-        if (journeySummaries.length === 1) {
-          journeySummary = journeySummary.replace(/^Flight 1: /, "");
-        } else if (journeySummaries.length === 2) {
-          const firstDepCity = group.flights[0].departure.city;
-          const lastArrCity = group.flights[group.flights.length - 1].arrival.city;
-
-          const splitIndexes = [];
-          for (let i = 1; i < group.flights.length; i++) {
-            const prevArr = new Date(`${group.flights[i - 1].arrival.date}T${group.flights[i - 1].arrival.time}`);
-            const currDep = new Date(`${group.flights[i].departure.date}T${group.flights[i].departure.time}`);
-            const diffHrs = (currDep - prevArr) / 1000 / 60 / 60;
-            if (diffHrs >= 24) splitIndexes.push(i);
-          }
-
-          const secondDepCity = group.flights[splitIndexes[0]]?.departure.city;
-
-          if (firstDepCity === lastArrCity || firstDepCity === secondDepCity) {
-            if (journeyIndex === 0) {
-              journeySummary = journeySummary.replace(/^Flight 1: /, "Outbound: ");
-            } else if (journeyIndex === 1) {
-              journeySummary = journeySummary.replace(/^Flight 2: /, "Inbound: ");
-            }
-          }
-        }
-
-        const headerRowSegmented = `
-          <tr>
-            <th></th>
-            <th>Date</th>
-            <th>Airline</th>
-            <th>Flight No</th>
-            ${showCabin ? "<th>Cabin</th>" : ""}
-            <th>Depart</th>
-            <th>From</th>
-            <th>Arrive</th>
-            <th>At</th>
-            <th>Duration</th>
-            ${hasTransit ? "<th>Transit</th>" : ""}
-          </tr>
-        `;
-        const journeyHeader = isNewJourney ? `
-          <tr>
-            <td colspan="${hasTransit ? 11 : 10}" style="font-weight:bold; border: none; background: none;">${journeySummary}</td>
-          </tr>
-          ${headerRowSegmented}
-        ` : "";
-
-        rows += `
-          ${journeyHeader}
-          <tr>
-            <td>${logo ? `<img src="${logo}" alt="${f.airline} logo">` : ""}</td>
-            <td>${formattedDate}</td>
-            <td>
-              ${f.airline}
-              ${f.operatedBy?.airlineName ? `<div style="font-size: 90%; color: #555;">Operated by ${f.operatedBy.airlineName}</div>` : ""}
-            </td>
-            <td>${f.flightNumber.replace(/[^\d]/g, "")}</td>
-            ${cabinCell}
-            <td>${formatTime(f.departure.time)}</td>
-            <td>${f.departure.airportName} (${f.departure.airport})</td>
-            <td>${formatTime(f.arrival.time)}</td>
-            <td>${f.arrival.airportName} (${f.arrival.airport})</td>
-            <td>${duration}</td>
-            ${hasTransit ? `<td>${transitTimes[i] || ""}</td>` : ""}
-          </tr>
-        `;
-      });
-
-      html += rows + "</table>";
-    });
-
-    document.getElementById("flightTableWrapper").innerHTML = html;
-    // Only show copy button if html contains a table (i.e., actual table content)
-    if (html.includes("<table")) {
-      document.getElementById("copyButton").style.display = "inline-block";
-    } else {
-      document.getElementById("copyButton").style.display = "none";
-    }
-  }
-
-  function formatTime(time24) {
-    const [hourStr, min] = time24.split(":");
-    let hour = parseInt(hourStr);
-    const ampm = hour >= 12 ? "pm" : "am";
-    hour = hour % 12 || 12;
-    return `${hour}:${min} ${ampm}`;
-  }
-
-  function copyTableToClipboard() {
-    const wrapper = document.getElementById("flightTableWrapper");
-    if (!wrapper) return;
-
-    const range = document.createRange();
-    range.selectNode(wrapper);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-
-    try {
-      document.execCommand("copy");
-      selection.removeAllRanges();
-    } catch (err) {
-      console.error("Failed to copy table.", err);
-    }
-  }
-
-  function fetchFlightData() {
-    const pnr = document.getElementById("pnrInput").value.trim();
-    if (!pnr) {
-      alert("Please enter a PNR.");
-      return;
-    }
-    const submitBtn = document.getElementById("submitBtn");
-    submitBtn.className = "button is-primary button-async";
-    submitBtn.setAttribute("data-state", "loading");
-    document.getElementById("loadingSpinner").style.display = "block";
-    document.getElementById("flightTableWrapper").innerHTML = "";
-    // Hide copy button before making fetch call
-    document.getElementById("copyButton").style.display = "none";
-
-    fetch("https://traveltailor.sandbox-pnrexpert.com/api/v1/pnr", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImM1OTE5NjViLWI0N2QtNDM1MC1iNGNiLTdjODYyNTRmNDg1YiIsImlhdCI6MTc0NjQ4MjEwMH0.HGIbM8jp_uzA8vCBKvUXSPyTSbL-UTA_4k7rSG8gmzA"
-      },
-      body: JSON.stringify({ pnr })
-    })
-    .then(res => res.json())
-    .then(data => {
-      document.getElementById("loadingSpinner").style.display = "none";
-      submitBtn.className = "button is-primary";
-      submitBtn.setAttribute("data-state", "default");
-      if (!data || !data.data || !data.data.flights) {
-        document.getElementById("flightTableWrapper").innerHTML = '<p style="color:red;">Invalid or incomplete PNR response.</p>';
-        return;
-      }
-      renderFlightTable(data);
-    })
-    .catch(err => {
-      document.getElementById("loadingSpinner").style.display = "none";
-      submitBtn.className = "button is-primary";
-      submitBtn.setAttribute("data-state", "default");
-      console.error("Error:", err);
-      document.getElementById("flightTableWrapper").innerHTML = '<p style="color:red;">Unexpected Error:<br>Load failed</p>';
-    });
-  }
 </script>
+  <script>
+    document.getElementById('submitBtn').addEventListener('click', () => {
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.classList.add('button-async--loading');
 
+      const output = document.getElementById('output');
+      const pnrText = document.getElementById('pnrInput').value.trim();
+
+      if (pnrText) {
+        // Simulate async delay
+        setTimeout(() => {
+          output.style.display = 'block';
+          output.textContent = 'Result:\n' + pnrText;
+
+          const copyBtn = document.getElementById('copyBtn');
+          copyBtn.style.display = 'inline-block';
+
+          submitBtn.classList.remove('button-async--loading');
+
+          copyBtn.onclick = () => {
+            navigator.clipboard.writeText(output.textContent)
+              .then(() => {
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => {
+                  copyBtn.textContent = 'Copy Table';
+                }, 1500);
+              });
+          };
+        }, 1500); // simulate 1.5s delay
+      } else {
+        output.style.display = 'none';
+        document.getElementById('copyBtn').style.display = 'none';
+        submitBtn.classList.remove('button-async--loading');
+      }
+    });
+  </script>
 </body>
 </html>
