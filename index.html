@@ -584,11 +584,12 @@
     });
     // Apply light-mode styles to all text elements (headings, paragraphs, etc)
     clone.querySelectorAll("*").forEach(el => {
-      el.style.color = "#000";
-      if (el.tagName.toLowerCase() === "p" || el.tagName.toLowerCase() === "h3") {
-        el.style.backgroundColor = "#fff";
-      }
-    });
+  el.style.color = "#000";
+  el.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif";
+  if (el.tagName.toLowerCase() === "p" || el.tagName.toLowerCase() === "h3") {
+    el.style.backgroundColor = "#fff";
+  }
+});
 
     // Explicitly set fixed dimensions for airline logos in copied table as inline style attribute (stricter for email compatibility)
     clone.querySelectorAll("td img").forEach(el => {
