@@ -93,6 +93,13 @@
       width: 100px;
       text-align: center;
     }
+    td .operated-by {
+      font-size: 90% !important;
+      color: #555 !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif !important;
+      line-height: 1.4 !important;
+      display: block !important;
+    }
 </style>
   <style>
     @media (prefers-color-scheme: dark) {
@@ -518,8 +525,8 @@
             <td class="logo-cell">${logo ? `<img src="${logo}" alt="${f.airline} logo">` : ""}</td>
             <td>${formattedDate}</td>
             <td>
-              ${f.airline}
-              ${f.operatedBy?.airlineName ? `<div style="font-size: 90%; color: #555;">Operated by ${f.operatedBy.airlineName}</div>` : ""}
+              <div>${f.airline}</div>
+              ${f.operatedBy?.airlineName ? `<div class="operated-by">Operated by ${f.operatedBy.airlineName}</div>` : ""}
             </td>
             <td>${f.flightNumber.replace(/[^\d]/g, "")}</td>
             ${cabinCell}
@@ -584,12 +591,21 @@
     });
     // Apply light-mode styles to all text elements (headings, paragraphs, etc)
     clone.querySelectorAll("*").forEach(el => {
-  el.style.color = "#000";
-  el.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif";
-  if (el.tagName.toLowerCase() === "p" || el.tagName.toLowerCase() === "h3") {
-    el.style.backgroundColor = "#fff";
-  }
-});
+      el.style.color = "#000";
+      el.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif";
+      if (el.tagName.toLowerCase() === "p" || el.tagName.toLowerCase() === "h3") {
+        el.style.backgroundColor = "#fff";
+      }
+    });
+
+
+    // Style "Operated by" lines
+    clone.querySelectorAll(".operated-by").forEach(el => {
+      el.style.fontSize = "90%";
+      el.style.color = "#555";
+      el.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif";
+      el.style.lineHeight = "1.4";
+    });
 
     // Explicitly set fixed dimensions for airline logos in copied table as inline style attribute (stricter for email compatibility)
     clone.querySelectorAll("td img").forEach(el => {
