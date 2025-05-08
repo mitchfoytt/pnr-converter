@@ -545,32 +545,19 @@
         let journeySummary = journeySummaries[journeyIndex];
         if (showSummaries && journeySummaries.length === 1) {
           journeySummary = journeySummary.replace(/^Flight 1: /, "");
-        } else
-        // Updated logic: Only apply Outbound/Inbound labels for true return trips (2 journeys, 1 group), and only if journeySummaries look like "Flight N: ...".
-        if (
+        } else if (
           showSummaries &&
           journeySummaries.length === 2 &&
-          groups.length === 1 &&
           journeySummaries.every(j => j.startsWith("Flight "))
         ) {
           const firstDepCity = group.flights[0].departure.city;
           const lastArrCity = group.flights[group.flights.length - 1].arrival.city;
-          const splitIndexes = [];
-          for (let i = 1; i < group.flights.length; i++) {
-            const prevArr = new Date(`${group.flights[i - 1].arrival.date}T${group.flights[i - 1].arrival.time}`);
-            const currDep = new Date(`${group.flights[i].departure.date}T${group.flights[i].departure.time}`);
-            const diffHrs = (currDep - prevArr) / 1000 / 60 / 60;
-            if (diffHrs >= 24) splitIndexes.push(i);
-          }
-          const secondDepCity = group.flights[splitIndexes[0]]?.departure.city;
-          const shouldUseOutboundLabels = (
-            firstDepCity === lastArrCity || firstDepCity === secondDepCity
-          );
-          if (shouldUseOutboundLabels) {
+
+          if (firstDepCity && lastArrCity && firstDepCity === lastArrCity) {
             if (journeyIndex === 0) {
-              journeySummary = `Outbound: ${journeySummary.replace(/^Flight \d+: /, "")}`;
+              journeySummary = journeySummary.replace(/^Flight 1: /, "Outbound: ");
             } else if (journeyIndex === 1) {
-              journeySummary = `Inbound: ${journeySummary.replace(/^Flight \d+: /, "")}`;
+              journeySummary = journeySummary.replace(/^Flight 2: /, "Inbound: ");
             }
           }
         }
