@@ -78,7 +78,10 @@
     }
     th {
       background-color: #e6e8ea;
-      font-size: 12px;
+      font-size: 11px;
+      padding: 2px 4px;
+      line-height: 1;
+      white-space: nowrap;
     }
     td img {
       max-width: 100px;
@@ -419,10 +422,8 @@
           <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Airline</th>
           <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Flight No</th>
           ${showCabin ? '<th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Cabin</th>' : ""}
-          <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Depart</th>
-          <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">From</th>
-          <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Arrive</th>
-          <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">At</th>
+          <th colspan="2" style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Departs</th>
+          <th colspan="2" style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Arrives</th>
           <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Duration</th>
           ${hasTransit ? '<th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Transit</th>' : ""}
         </tr>
@@ -499,10 +500,8 @@
             <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Airline</th>
             <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Flight No</th>
             ${showCabin ? '<th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Cabin</th>' : ""}
-            <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Depart</th>
-            <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">From</th>
-            <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Arrive</th>
-            <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">At</th>
+            <th colspan="2" style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Departs</th>
+            <th colspan="2" style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Arrives</th>
             <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Duration</th>
             ${hasTransit ? '<th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Transit</th>' : ""}
           </tr>
@@ -530,10 +529,23 @@
             </td>
             <td>${f.flightNumber.replace(/[^\d]/g, "")}</td>
             ${cabinCell}
-            <td>${formatTime(f.departure.time)}</td>
-            <td>${f.departure.airportName} (${f.departure.airport})</td>
-            <td>${formatTime(f.arrival.time)}</td>
-            <td>${f.arrival.airportName} (${f.arrival.airport})</td>
+            <td colspan="2">
+              ${f.departure.airportName} (${f.departure.airport})<br>
+              <strong>${formatTime(f.departure.time)}</strong>
+            </td>
+            <td colspan="2">
+              ${f.arrival.airportName} (${f.arrival.airport})<br>
+              <strong>${(() => {
+                const depDateTime = new Date(`${f.departure.date}T${f.departure.time}:00`);
+                const arrDateTime = new Date(`${f.arrival.date}T${f.arrival.time}:00`);
+                const formattedTime = formatTime(f.arrival.time);
+                if (arrDateTime.getDate() !== depDateTime.getDate()) {
+                  const suffix = arrDateTime.toLocaleDateString("en-GB", { day: 'numeric', month: 'short' });
+                  return `${formattedTime} <span style="color: #555;">(On ${suffix})</span>`;
+                }
+                return formattedTime;
+              })()}</strong>
+            </td>
             <td>${duration}</td>
             ${hasTransit ? `<td>${transitTimes[i] || ""}</td>` : ""}
           </tr>
@@ -578,6 +590,10 @@
       el.style.color = "#000";
       el.style.borderColor = "#333";
       el.style.fontWeight = "bold";
+      el.style.padding = "2px 4px";
+      el.style.lineHeight = "1";
+      el.style.fontSize = "11px";
+      el.style.whiteSpace = "nowrap";
     });
     // Style td cells
     clone.querySelectorAll("td").forEach(el => {
