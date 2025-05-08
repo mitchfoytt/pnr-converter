@@ -235,10 +235,12 @@
       operatedBy: f.operatedBy
     }));
 
-    // Add style toggle if not present
-    if (!document.getElementById("styleToggleContainer")) {
+    // Add style toggle if not present or not already in output-container
+    const existingToggle = document.getElementById("styleToggleContainer");
+    if (!existingToggle || !document.querySelector(".output-container").contains(existingToggle)) {
       const optionsDiv = document.createElement("div");
       optionsDiv.className = "options-container";
+      optionsDiv.id = "styleToggleContainer";
       optionsDiv.style = "margin-bottom: 16px; padding: 12px; border: 1px solid #ccc; border-radius: 6px;";
       optionsDiv.innerHTML = `
   <h4 style="margin-top: 0;">Formatting Options</h4>
