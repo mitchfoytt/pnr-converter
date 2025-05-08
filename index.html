@@ -80,7 +80,6 @@
       background-color: #e6e8ea;
       font-size: 11px;
       padding: 2px 4px;
-      line-height: 1;
       white-space: nowrap;
     }
     td img {
@@ -349,6 +348,76 @@
       html += `<br><p><strong>Travellers:</strong><br>${passengerNames.join("<br>")}</p>`;
     }
 
+    // If showSummaries is false, render a single unified table and return.
+    if (!showSummaries) {
+      const allFlights = groups.flatMap(group => group.flights);
+      const showCabin = allFlights.some(f => f.cabin);
+      const transitTimes = allFlights.map((f, i, arr) => {
+        if (i >= arr.length - 1) return null;
+        const currArrival = new Date(`${f.arrival.date}T${f.arrival.time}`);
+        const nextDeparture = new Date(`${arr[i + 1].departure.date}T${arr[i + 1].departure.time}`);
+        const diffMs = nextDeparture - currArrival;
+        const diffHrs = diffMs / 1000 / 60 / 60;
+        return diffHrs < 24 ? `${Math.floor(diffHrs)}h ${Math.round((diffHrs % 1) * 60)}m` : null;
+      });
+      const hasTransit = transitTimes.some(Boolean);
+
+      html += `<table>
+        <tr>
+          <th></th>
+          <th>Date</th>
+          <th>Airline</th>
+          <th>Flight No</th>
+          ${showCabin ? '<th>Cabin</th>' : ''}
+          <th colspan="2">Departs</th>
+          <th colspan="2">Arrives</th>
+          <th>Duration</th>
+          ${hasTransit ? '<th>Transit</th>' : ''}
+        </tr>`;
+
+      allFlights.forEach((f, i) => {
+        const logo = getAirlineLogo(f.iataCode);
+        const depDate = new Date(f.departure.date);
+        const formattedDate = depDate.toLocaleDateString("en-GB", {
+          weekday: "short", day: "numeric", month: "short"
+        });
+
+        html += `
+        <tr>
+          <td class="logo-cell">${logo ? `<img src="${logo}" alt="${f.airline} logo">` : ""}</td>
+          <td>${formattedDate}</td>
+          <td>
+            <div>${f.airline}</div>
+            ${f.operatedBy?.airlineName ? `<div class="operated-by">Operated by ${f.operatedBy.airlineName}</div>` : ""}
+          </td>
+          <td>${f.flightNumber.replace(/[^\d]/g, "")}</td>
+          ${showCabin ? `<td>${f.cabin || f.bookingClass}</td>` : ""}
+          <td colspan="2">
+            ${f.departure.airportName} (${f.departure.airport})<br>
+            <strong>${formatTime(f.departure.time)}</strong>
+          </td>
+          <td colspan="2">
+            ${f.arrival.airportName} (${f.arrival.airport})<br>
+            <strong>${(() => {
+              const dep = new Date(`${f.departure.date}T${f.departure.time}`);
+              const arr = new Date(`${f.arrival.date}T${f.arrival.time}`);
+              const formatted = formatTime(f.arrival.time);
+              return arr.getDate() !== dep.getDate()
+                ? `${formatted} <span style="color: #555;">(On ${arr.toLocaleDateString("en-GB", { day: "numeric", month: "short" })})</span>`
+                : formatted;
+            })()}</strong>
+          </td>
+          <td>${f.duration}</td>
+          ${hasTransit ? `<td>${transitTimes[i] || ""}</td>` : ""}
+        </tr>`;
+      });
+
+      html += "</table>";
+      document.getElementById("flightTableWrapper").innerHTML = html;
+      document.getElementById("copyButton").style.display = "inline-block";
+      return;
+    }
+
     groups.forEach((group, gIndex) => {
       const showCabin = group.flights.some(f => f.cabin);
       const transitTimes = group.flights.map((f, i, arr) => {
@@ -429,8 +498,8 @@
         </tr>
       `;
 
-      // Only show group label if there is more than one group
-      const groupTitle = groups.length > 1 ? `<strong>${group.label}</strong><br>` : "";
+      // Only show group label if there is more than one group and showSummaries is enabled
+      const groupTitle = (groups.length > 1 && showSummaries) ? `<div style="margin-bottom: 4px;"><strong>${group.label}</strong></div>` : "";
       html += `
         <div style="margin: 8px 0; font-weight: bold;">${groupTitle}</div>
         <table>
@@ -473,7 +542,14 @@
         let journeySummary = journeySummaries[journeyIndex];
         if (showSummaries && journeySummaries.length === 1) {
           journeySummary = journeySummary.replace(/^Flight 1: /, "");
-        } else if (showSummaries && journeySummaries.length === 2) {
+        } else
+        // Updated logic: Only apply Outbound/Inbound labels for true return trips (2 journeys, 1 group), and only if journeySummaries look like "Flight N: ...".
+        if (
+          showSummaries &&
+          journeySummaries.length === 2 &&
+          groups.length === 1 &&
+          journeySummaries.every(j => j.startsWith("Flight "))
+        ) {
           const firstDepCity = group.flights[0].departure.city;
           const lastArrCity = group.flights[group.flights.length - 1].arrival.city;
           const splitIndexes = [];
@@ -484,11 +560,14 @@
             if (diffHrs >= 24) splitIndexes.push(i);
           }
           const secondDepCity = group.flights[splitIndexes[0]]?.departure.city;
-          if (firstDepCity === lastArrCity || firstDepCity === secondDepCity) {
+          const shouldUseOutboundLabels = (
+            firstDepCity === lastArrCity || firstDepCity === secondDepCity
+          );
+          if (shouldUseOutboundLabels) {
             if (journeyIndex === 0) {
-              journeySummary = journeySummary.replace(/^Flight 1: /, "Outbound: ");
+              journeySummary = `Outbound: ${journeySummary.replace(/^Flight \d+: /, "")}`;
             } else if (journeyIndex === 1) {
-              journeySummary = journeySummary.replace(/^Flight 2: /, "Inbound: ");
+              journeySummary = `Inbound: ${journeySummary.replace(/^Flight \d+: /, "")}`;
             }
           }
         }
@@ -506,18 +585,24 @@
             ${hasTransit ? '<th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Transit</th>' : ""}
           </tr>
         `;
-        // Always show header row for first flight, and for new journeys show summary if enabled
-        const journeyHeader = ((isNewJourney && showSummaries) || i === 0)
-          ? (showSummaries && isNewJourney
-            ? `
+        // Only show a single header row and avoid duplication when summaries are toggled off
+        const journeyHeader = (() => {
+          if (showSummaries && journeySummary) {
+            if (isNewJourney || i === 0) {
+              return `
                 <tr>
                   <td colspan="${hasTransit ? 11 : 10}" style="font-weight:bold; border: none; background: none;">${journeySummary}</td>
                 </tr>
                 ${headerRowSegmented}
-              `
-            : headerRowSegmented)
-          : "";
-
+              `;
+            }
+            return "";
+          }
+          if (!showSummaries && gIndex === 0 && i === 0) {
+            return headerRowSegmented;
+          }
+          return "";
+        })();
         rows += `
           ${journeyHeader}
           <tr>
@@ -587,13 +672,13 @@
     // Style th cells
     clone.querySelectorAll("th").forEach(el => {
       el.style.backgroundColor = "#e6e8ea";
-      el.style.color = "#000";
-      el.style.borderColor = "#333";
-      el.style.fontWeight = "bold";
-      el.style.padding = "2px 4px";
-      el.style.lineHeight = "1";
-      el.style.fontSize = "11px";
-      el.style.whiteSpace = "nowrap";
+el.style.color = "#000";
+el.style.borderColor = "#333";
+el.style.fontWeight = "bold";
+el.style.padding = "6px 8px";
+el.style.lineHeight = "1.4";
+el.style.fontSize = "12px";
+el.style.whiteSpace = "nowrap";
     });
     // Style td cells
     clone.querySelectorAll("td").forEach(el => {
