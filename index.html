@@ -72,12 +72,12 @@
     }
     th, td {
       border: 1px solid #333;
-      padding: 3px 5px;
+      padding: 8px 10px;
       text-align: left;
       font-size: 12px;
     }
     th {
-      background-color: #eee;
+      background-color: #e6e8ea;
       font-size: 12px;
     }
     td img {
@@ -114,14 +114,22 @@
         border-color: #555;
       }
       th {
-        background-color: #444;
-        color: #eee;
+        background-color: #2b2b2b;
+        color: #ddd;
       }
+      /* The following rules for td and td img are intentionally removed or commented out to prevent dark mode from overriding email table formatting:
       td {
         color: #ddd;
       }
       td img {
         filter: brightness(0.9);
+      }
+      */
+      tr:nth-child(even) td {
+        background-color: #262626;
+      }
+      tr:nth-child(odd) td {
+        background-color: #1f1f1f;
       }
     }
   </style>
@@ -393,24 +401,24 @@
 
       const headerRow = `
         <tr>
-          <th></th>
-          <th>Date</th>
-          <th>Airline</th>
-          <th>Flight No</th>
-          ${showCabin ? "<th>Cabin</th>" : ""}
-          <th>Depart</th>
-          <th>From</th>
-          <th>Arrive</th>
-          <th>At</th>
-          <th>Duration</th>
-          ${hasTransit ? "<th>Transit</th>" : ""}
+          <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;"></th>
+          <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Date</th>
+          <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Airline</th>
+          <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Flight No</th>
+          ${showCabin ? '<th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Cabin</th>' : ""}
+          <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Depart</th>
+          <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">From</th>
+          <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Arrive</th>
+          <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">At</th>
+          <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Duration</th>
+          ${hasTransit ? '<th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Transit</th>' : ""}
         </tr>
       `;
 
       // Only show group label if there is more than one group
       const groupTitle = groups.length > 1 ? `<strong>${group.label}</strong><br>` : "";
       html += `
-        <p>${groupTitle}</p>
+        <div style="margin: 8px 0; font-weight: bold;">${groupTitle}</div>
         <table>
       `;
 
@@ -473,17 +481,17 @@
 
         const headerRowSegmented = `
           <tr>
-            <th></th>
-            <th>Date</th>
-            <th>Airline</th>
-            <th>Flight No</th>
-            ${showCabin ? "<th>Cabin</th>" : ""}
-            <th>Depart</th>
-            <th>From</th>
-            <th>Arrive</th>
-            <th>At</th>
-            <th>Duration</th>
-            ${hasTransit ? "<th>Transit</th>" : ""}
+            <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;"></th>
+            <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Date</th>
+            <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Airline</th>
+            <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Flight No</th>
+            ${showCabin ? '<th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Cabin</th>' : ""}
+            <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Depart</th>
+            <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">From</th>
+            <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Arrive</th>
+            <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">At</th>
+            <th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Duration</th>
+            ${hasTransit ? '<th style="background-color:#e6e8ea; color:#000; padding:8px 10px; font-size:12px;">Transit</th>' : ""}
           </tr>
         `;
         // Always show header row for first flight, and for new journeys show summary if enabled
@@ -551,9 +559,20 @@
 
     // Clone and apply light-mode styles
     const clone = wrapper.cloneNode(true);
-    clone.querySelectorAll("table, th, td").forEach(el => {
+    // Style th cells
+    clone.querySelectorAll("th").forEach(el => {
+      el.style.backgroundColor = "#e6e8ea";
+      el.style.color = "#000";
+      el.style.borderColor = "#333";
+    });
+    // Style td cells
+    clone.querySelectorAll("td").forEach(el => {
       el.style.backgroundColor = "#fff";
       el.style.color = "#000";
+      el.style.borderColor = "#333";
+    });
+    // Style table borders
+    clone.querySelectorAll("table").forEach(el => {
       el.style.borderColor = "#333";
     });
     // Apply light-mode styles to all text elements (headings, paragraphs, etc)
