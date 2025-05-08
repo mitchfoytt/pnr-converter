@@ -235,6 +235,10 @@
       operatedBy: f.operatedBy
     }));
 
+    // Store formatted data in global variables for checkbox toggling
+    window._cachedFormattedFlights = formattedFlights;
+    window._cachedPassengerNames = passengerNames;
+
     // Add style toggle if not present or not already in output-container
     const existingToggle = document.getElementById("styleToggleContainer");
     if (!existingToggle || !document.querySelector(".output-container").contains(existingToggle)) {
@@ -251,7 +255,11 @@
 `;
       document.querySelector(".output-container").prepend(optionsDiv);
       document.getElementById("styleToggle").addEventListener("change", () => {
-        renderFlightTableFromInternalFormat({ result: { itinerary: formattedFlights } }, "", passengerNames);
+        renderFlightTableFromInternalFormat(
+          { result: { itinerary: window._cachedFormattedFlights } },
+          "",
+          window._cachedPassengerNames
+        );
       });
     }
 
