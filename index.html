@@ -81,11 +81,17 @@
       font-size: 12px;
     }
     td img {
-      width: 100px;
-      height: auto;
+      max-width: 100px;
       max-height: 35px;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+      Vertical-align: middle;
       object-fit: contain;
-      vertical-align: middle;
+    }
+    td.logo-cell {
+      width: 100px;
+      text-align: center;
     }
 </style>
   <style>
@@ -239,7 +245,7 @@
         date: f.arrivingAt.time.split("T")[0],
         time: f.arrivingAt.time.split("T")[1].substring(0, 5)
       },
-      duration: `${f.flightDuration.hours}h ${f.flightDuration.minutes}m`,
+      duration: `${(f.flightDuration.days * 24 + f.flightDuration.hours)}h ${f.flightDuration.minutes}m`,
       operatedBy: f.operatedBy
     }));
 
@@ -328,9 +334,9 @@
     }
 
     if (passengerNames.length === 1) {
-      html += `<p><strong>Traveller:</strong><br>${passengerNames[0]}</p>`;
+      html += `<br><p><strong>Traveller:</strong><br>${passengerNames[0]}</p>`;
     } else if (passengerNames.length > 1) {
-      html += `<p><strong>Travellers:</strong><br>${passengerNames.join("<br>")}</p>`;
+      html += `<br><p><strong>Travellers:</strong><br>${passengerNames.join("<br>")}</p>`;
     }
 
     groups.forEach((group, gIndex) => {
@@ -509,7 +515,7 @@
         rows += `
           ${journeyHeader}
           <tr>
-            <td>${logo ? `<img src="${logo}" alt="${f.airline} logo">` : ""}</td>
+            <td class="logo-cell">${logo ? `<img src="${logo}" alt="${f.airline} logo">` : ""}</td>
             <td>${formattedDate}</td>
             <td>
               ${f.airline}
@@ -564,6 +570,7 @@
       el.style.backgroundColor = "#e6e8ea";
       el.style.color = "#000";
       el.style.borderColor = "#333";
+      el.style.fontWeight = "bold";
     });
     // Style td cells
     clone.querySelectorAll("td").forEach(el => {
