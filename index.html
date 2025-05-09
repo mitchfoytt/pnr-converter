@@ -105,8 +105,12 @@
       line-height: 1.4 !important;
       display: block !important;
     }
-</style>
-  <style>
+    .options-container {
+      padding: 12px;
+    }
+    .options-container.collapsed > div {
+      display: none;
+    }
     @media (prefers-color-scheme: dark) {
       body {
         background-color: #1e1e1e;
@@ -150,6 +154,11 @@
         background-color: #1f1f1f;
       }
     }
+    /* .options-container.collapsed rules removed (see above for new rules) */
+    .options-container h4 {
+      margin: 0;
+      line-height: 1.4;
+    }
   </style>
 </head>
 <body>
@@ -178,6 +187,10 @@
           </i>
         </div>
       </button>
+    </div>
+    <div id="historyToggleContainer" class="options-container collapsed" style="margin-top: 1em; border: 1px solid #ccc; border-radius: 6px;">
+      <h4 style="margin-top: 0; cursor: pointer;" onclick="toggleHistory()">Recent Itineraries ▾</h4>
+      <div id="historyListWrapper" style="margin-top: 8px; display: none;"></div>
     </div>
   </div>
 </div>
@@ -225,6 +238,7 @@
 
   function renderFlightTable(apiData) {
     const flights = apiData.data?.flights || [];
+    saveItineraryToHistory(apiData);
     if (!flights.length) {
       document.getElementById("flightTableWrapper").innerHTML = '<p style="color:red;">No flights found.</p>';
       document.querySelector(".output-container").style.display = "block";
@@ -271,14 +285,16 @@
       const optionsDiv = document.createElement("div");
       optionsDiv.className = "options-container";
       optionsDiv.id = "styleToggleContainer";
-      optionsDiv.style = "margin-bottom: 16px; padding: 12px; border: 1px solid #ccc; border-radius: 6px;";
+      optionsDiv.style = "margin-bottom: 16px; border: 1px solid #ccc; border-radius: 6px; padding: 12px;";
       optionsDiv.innerHTML = `
-  <h4 style="margin-top: 0;">Formatting Options</h4>
-  <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px;">
-    <input type="checkbox" id="styleToggle" checked />
-    <span style="white-space: nowrap;">Include Itinerary Summary</span>
-  </label>
-`;
+    <h4 style="margin-top: 0; cursor: pointer;" onclick="toggleFormattingOptions()">Formatting Options ▾</h4>
+    <div id="formattingOptionsBody" style="margin-top: 8px; display: none;">
+      <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px;">
+        <input type="checkbox" id="styleToggle" checked />
+        <span style="white-space: nowrap;">Include Itinerary Summary</span>
+      </label>
+    </div>
+  `;
       document.querySelector(".output-container").prepend(optionsDiv);
       document.getElementById("styleToggle").addEventListener("change", () => {
         renderFlightTableFromInternalFormat(
@@ -761,6 +777,7 @@ el.style.whiteSpace = "nowrap";
         return;
       }
       renderFlightTable(data);
+      document.getElementById("pnrInput").value = "";
     })
     .catch(err => {
       submitBtn.classList.remove("button-async--loading");
@@ -768,6 +785,251 @@ el.style.whiteSpace = "nowrap";
       document.getElementById("flightTableWrapper").innerHTML = '<p style="color:red;">Unexpected Error:<br>Load failed</p>';
     });
   }
+  // --- History functions ---
+  function saveItineraryToHistory(data) {
+    const history = JSON.parse(localStorage.getItem("itineraryHistory") || "[]");
+    history.unshift({ timestamp: Date.now(), data });
+    localStorage.setItem("itineraryHistory", JSON.stringify(history.slice(0, 10)));
+    renderHistoryList();
+  }
+
+  function renderHistoryList() {
+    let history = JSON.parse(localStorage.getItem("itineraryHistory") || "[]");
+    const wrapper = document.getElementById("historyListWrapper");
+    if (!wrapper) return;
+    wrapper.innerHTML = "";
+    wrapper.style.display = "none";
+    const historyContainer = document.getElementById("historyToggleContainer");
+    if (history.length === 0) {
+      if (historyContainer) {
+        historyContainer.style.display = "none";
+      }
+      return;
+    } else {
+      if (historyContainer) {
+        historyContainer.style.display = "block";
+      }
+    }
+
+    const list = document.createElement("ul");
+    list.style.listStyle = "none";
+    list.style.paddingLeft = "0";
+
+    history.forEach((item, index) => {
+      const li = document.createElement("li");
+      const date = new Date(item.timestamp);
+      // New formattedDate logic for Today/Yesterday
+      const now = new Date();
+      const isToday = date.toDateString() === now.toDateString();
+      const isYesterday = date.toDateString() === new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toDateString();
+      const time = date.toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" });
+
+      let formattedDate = "";
+      if (isToday) {
+        formattedDate = `Today at ${time}`;
+      } else if (isYesterday) {
+        formattedDate = `Yesterday at ${time}`;
+      } else {
+        formattedDate = date.toLocaleString("en-AU", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+      }
+
+      const flights = item.data?.data?.flights || [];
+      const passengers = item.data?.data?.passengers || [];
+      // Use new extraction logic for passenger name
+      const name = passengers.length ? passengers[0].name.split("/")[0] + " " : "";
+
+      // Generate summary label using same logic as table summary
+      let summary = "";
+      const journeys = [];
+      let journeyStartIndex = 0;
+      for (let i = 0; i < flights.length; i++) {
+        const current = flights[i];
+        const next = flights[i + 1];
+        const lastArrival = new Date(`${current.arrivingAt.time}`);
+        const shouldSplit = !next || (() => {
+          const nextDeparture = new Date(`${next.departingFrom.time}`);
+          return (nextDeparture - lastArrival) / 1000 / 60 / 60 >= 24;
+        })();
+        if (shouldSplit) {
+          const journeyFlights = flights.slice(journeyStartIndex, i + 1);
+          const from = journeyFlights[0]?.departingFrom?.cityName || "";
+          const to = journeyFlights.at(-1)?.arrivingAt?.cityName || "";
+          journeys.push({ from, to });
+          journeyStartIndex = i + 1;
+        }
+      }
+      summary = journeys.map((j, i, arr) => {
+        if (i === 0) return `${j.from} → ${j.to}`;
+        const prev = arr[i - 1];
+        const connector = (prev.to === j.from) ? " → " : " / ";
+        return connector + (j.from !== prev.to ? `${j.from} → ` : "") + j.to;
+      }).join("");
+      // Main history button
+      const button = document.createElement("button");
+      button.className = "button";
+      button.style.fontSize = "12px";
+      button.style.padding = "6px 10px";
+      button.style.marginBottom = "8px";
+      button.style.backgroundColor = "var(--base-color-brand--primary, #2266ed)";
+      button.style.color = "var(--base-color-foreground-on-primary, white)";
+
+      // Build truncated summary (name+summary) and always show full date
+      const labelSpan = document.createElement("span");
+      const dateSpan = document.createElement("span");
+
+      labelSpan.textContent = `${name}${summary} `;
+      dateSpan.textContent = `(${formattedDate})`;
+
+      labelSpan.style.display = "inline-block";
+      labelSpan.style.whiteSpace = "nowrap";
+      labelSpan.style.overflow = "hidden";
+      labelSpan.style.textOverflow = "ellipsis";
+      labelSpan.style.flex = "1";
+
+      dateSpan.style.flex = "none";
+      dateSpan.style.marginLeft = "8px";
+      dateSpan.style.whiteSpace = "nowrap";
+
+      const wrapperDiv = document.createElement("div");
+      wrapperDiv.style.flex = "1";
+      wrapperDiv.style.display = "flex";
+      wrapperDiv.style.justifyContent = "space-between";
+      wrapperDiv.style.alignItems = "center";
+      wrapperDiv.style.textAlign = "left";
+      wrapperDiv.style.overflow = "hidden";
+
+      wrapperDiv.appendChild(labelSpan);
+      wrapperDiv.appendChild(dateSpan);
+
+      button.textContent = "";
+      button.style.display = "flex";
+      button.style.alignItems = "center";
+      button.style.width = "100%";
+      button.style.textAlign = "left";
+      button.appendChild(wrapperDiv);
+
+      button.onclick = () => loadFromHistory(index);
+      // Match .button hover
+      button.onmouseover = function() {
+        button.style.backgroundColor = "var(--base-color-brand--primary-dark, #1a50c1)";
+      };
+      button.onmouseout = function() {
+        button.style.backgroundColor = "var(--base-color-brand--primary, #2266ed)";
+      };
+
+      li.appendChild(button);
+      list.appendChild(li);
+    });
+
+    wrapper.appendChild(list);
+    // Add Clear History button
+    const clearBtn = document.createElement("button");
+    clearBtn.textContent = "Clear History";
+    clearBtn.className = "button";
+    clearBtn.style.backgroundColor = "#ccc";
+    clearBtn.style.color = "#000";
+    clearBtn.style.fontSize = "12px";
+    clearBtn.style.padding = "6px 10px";
+    clearBtn.style.marginTop = "8px";
+    clearBtn.onclick = () => {
+      localStorage.removeItem("itineraryHistory");
+      renderHistoryList();
+    };
+    wrapper.appendChild(clearBtn);
+  }
+
+  function loadFromHistory(index) {
+    const history = JSON.parse(localStorage.getItem("itineraryHistory") || "[]");
+    const item = history[index];
+    if (item) {
+      const flights = item.data?.data?.flights || [];
+      const passengers = item.data?.data?.passengers || [];
+      const formattedFlights = flights.map(f => ({
+        flightNumber: f.flightNumber,
+        airline: f.airlineName,
+        iataCode: f.iataCode,
+        bookingClass: f.bookingClass,
+        cabin: f.cabin,
+        departure: {
+          airport: f.departingFrom.airportCode,
+          city: f.departingFrom.cityName,
+          airportName: f.departingFrom.airportName || f.departingFrom.cityName,
+          date: f.departingFrom.time.split("T")[0],
+          time: f.departingFrom.time.split("T")[1].substring(0, 5)
+        },
+        arrival: {
+          airport: f.arrivingAt.airportCode,
+          city: f.arrivingAt.cityName,
+          airportName: f.arrivingAt.airportName || f.arrivingAt.cityName,
+          date: f.arrivingAt.time.split("T")[0],
+          time: f.arrivingAt.time.split("T")[1].substring(0, 5)
+        },
+        duration: `${(f.flightDuration.days * 24 + f.flightDuration.hours)}h ${f.flightDuration.minutes}m`,
+        operatedBy: f.operatedBy
+      }));
+
+      window._cachedFormattedFlights = formattedFlights;
+      window._cachedPassengerNames = passengers.map(p => p.name).filter(Boolean);
+      document.querySelector(".output-container").style.display = "block";
+
+      // Add formatting toggle if needed
+      const existingToggle = document.getElementById("styleToggleContainer");
+      if (!existingToggle || !document.querySelector(".output-container").contains(existingToggle)) {
+        const optionsDiv = document.createElement("div");
+        optionsDiv.className = "options-container";
+        optionsDiv.id = "styleToggleContainer";
+        optionsDiv.style = "margin-bottom: 16px; border: 1px solid #ccc; border-radius: 6px; padding: 12px;";
+        optionsDiv.innerHTML = `
+          <h4 style="margin-top: 0; cursor: pointer;" onclick="toggleFormattingOptions()">Formatting Options ▾</h4>
+          <div id="formattingOptionsBody" style="margin-top: 8px; display: none;">
+            <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px;">
+              <input type="checkbox" id="styleToggle" checked />
+              <span style="white-space: nowrap;">Include Itinerary Summary</span>
+            </label>
+          </div>
+        `;
+        document.querySelector(".output-container").prepend(optionsDiv);
+        document.getElementById("styleToggle").addEventListener("change", () => {
+          renderFlightTableFromInternalFormat(
+            { result: { itinerary: window._cachedFormattedFlights } },
+            "",
+            window._cachedPassengerNames
+          );
+        });
+      }
+
+      renderFlightTableFromInternalFormat({ result: { itinerary: formattedFlights } }, "", window._cachedPassengerNames);
+    }
+  }
+
+  // (togglePin function removed)
+
+  function toggleHistory() {
+    const wrapper = document.getElementById("historyListWrapper");
+    const header = document.querySelector("#historyToggleContainer h4");
+    const container = document.getElementById("historyToggleContainer");
+    const isOpen = wrapper.style.display === "none";
+    wrapper.style.display = isOpen ? "block" : "none";
+    container.classList.toggle("collapsed", !isOpen);
+    header.textContent = isOpen ? "Recent Itineraries ▴" : "Recent Itineraries ▾";
+  }
+
+  // Toggle formatting options (collapsible)
+  function toggleFormattingOptions() {
+    const body = document.getElementById("formattingOptionsBody");
+    const header = document.querySelector("#styleToggleContainer h4");
+    if (!body || !header) return;
+    const container = document.getElementById("styleToggleContainer");
+    const isOpen = body.style.display === "none";
+    body.style.display = isOpen ? "block" : "none";
+    container.classList.toggle("collapsed", !isOpen);
+    header.textContent = isOpen ? "Formatting Options ▴" : "Formatting Options ▾";
+  }
+
+  // Initialize history on page load
+  document.addEventListener("DOMContentLoaded", () => {
+    renderHistoryList();
+  });
 </script>
 
 </body>
