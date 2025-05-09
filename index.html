@@ -6,10 +6,21 @@
   <link href="https://integrations.missiveapp.com/missive.css" rel="stylesheet">
   <script src="https://integrations.missiveapp.com/missive.js"></script>
   <style>
+    html, body {
+      height: 100%;
+    }
     body {
       background-color: #f5f6f7;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
       padding: 16px;
+      display: flex;
+      flex-direction: column;
+    }
+    .missive-integration {
+      flex: 1 0 auto;
+    }
+    footer {
+      flex-shrink: 0;
     }
     .container {
       background: white;
@@ -170,7 +181,7 @@
 <body>
 <div class="missive-integration">
   <div class="container">
-    <div class="browser-only">
+    <div class="browser-header" style="display: none;">
       <h3 class="text-xlarge text-800">Travel Tailor - PNR Converter</h3>
     </div>
     <textarea id="pnrInput" class="input" rows="8" style="width: 100%; height: 200px;" placeholder="Paste PNR here"></textarea>
@@ -1038,10 +1049,16 @@ el.style.whiteSpace = "nowrap";
   document.addEventListener("DOMContentLoaded", () => {
     renderHistoryList();
   });
+  // Only show the header if not inside an iframe
+  if (window.top === window.self) {
+    const header = document.querySelector(".browser-header");
+    if (header) header.style.display = "block";
+  }
 </script>
 
-</body>
-<footer style="margin-top: 32px; text-align: center; font-size: 12px; color: #888;">
+</div>
+<footer style="margin-top: 48px; text-align: center; font-size: 8px; color: #888;">
   Travel Tailor PNR Converter – Version 1.0 (0905)
 </footer>
+</body>
 </html>
