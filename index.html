@@ -28,8 +28,9 @@
       background: white;
       border: 1px solid #d0d3d6;
       padding: 16px;
-      border-radius: 6px;
+      border-radius: 16px;
       max-width: 100%;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
     }
     @media (max-width: 600px) {
       .container {
@@ -43,7 +44,7 @@
       color: inherit;
       font-size: 14px;
       padding: 12px;
-      border-radius: 6px;
+      border-radius: 16px;
       resize: vertical;
       font-family: inherit;
     }
@@ -52,7 +53,7 @@
       color: var(--base-color-foreground-on-primary, white);
       border: none;
       padding: 10px 16px;
-      border-radius: 6px;
+      border-radius: 8px;
       display: inline-flex;
       align-items: center;
       gap: 8px;
@@ -62,21 +63,25 @@
     .button:focus {
       outline: none;
       box-shadow: 0 0 0 2px rgba(34, 102, 237, 0.3);
+      border-radius: 8px;
     }
     .button:hover {
       background-color: var(--base-color-brand--primary-dark, #1a50c1);
       color: var(--base-color-foreground-on-primary, white);
+      border-radius: 8px;
     }
     .button-async,
     .button-async:hover {
       background-color: var(--base-color-brand--primary, #2266ed) !important;
       color: var(--base-color-foreground-on-primary, white) !important;
+      border-radius: 8px !important;
     }
     .button-async--loading,
     .button-async--loading:hover {
       opacity: 1 !important;
       background-color: var(--base-color-brand--primary-dark, #1a50c1) !important;
       color: var(--base-color-foreground-on-primary, white) !important;
+      border-radius: 8px !important;
     }
     table {
       border-collapse: collapse;
@@ -120,6 +125,7 @@
     }
     .options-container {
       padding: 12px;
+      border-radius: 16px;
     }
     .options-container.collapsed > div {
       display: none;
@@ -129,10 +135,17 @@
         background-color: #1e1e1e;
         color: #ddd;
       }
-      .container,
+      .container {
+        background-color: #2b2b2b;
+        border-color: #444;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+      }
       .output-container {
         background-color: #2b2b2b;
         border-color: #444;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
       }
       textarea.input {
         background-color: #333;
@@ -141,9 +154,11 @@
       .button {
         background-color: #3a6ee8;
         color: white;
+        border-radius: 8px;
       }
       .button:hover {
         background-color: #2e59c5;
+        border-radius: 8px;
       }
       table {
         border-color: #555;
@@ -166,6 +181,15 @@
       tr:nth-child(odd) td {
         background-color: #1f1f1f;
       }
+      /* Match th/td styling for both summary and non-summary tables in preview */
+      .output-container table th {
+        background-color: #2b2b2b !important;
+        color: #ddd !important;
+      }
+      .output-container table td {
+        background-color: #1f1f1f !important;
+        color: #ddd !important;
+      }
     }
     /* .options-container.collapsed rules removed (see above for new rules) */
     .options-container h4 {
@@ -177,6 +201,40 @@
     }
     .missive-integration iframe .browser-only {
       display: none !important;
+    }
+
+    /* Missive-style custom checkbox */
+    .checkbox {
+      position: relative;
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      border: 1px solid var(--base-color-border, #d0d3d6);
+      background-color: var(--base-color-surface-default, #fff);
+      vertical-align: middle;
+      box-sizing: border-box;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .checkbox[data-checked="true"] {
+      background: var(--base-color-brand--primary, #2266ed);
+      border-color: var(--base-color-brand--primary, #2266ed);
+    }
+    .checkbox::after {
+      content: "";
+      position: absolute;
+      display: none;
+      top: 50%;
+      left: 50%;
+      width: 4px;
+      height: 8px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: translate(-50%, -50%) rotate(45deg);
+    }
+    .checkbox[data-checked="true"]::after {
+      display: block;
     }
   </style>
 </head>
@@ -210,7 +268,7 @@
           </div>
         </button>
       </div>
-      <div id="historyToggleContainer" class="options-container collapsed" style="margin-top: 1em; border: 1px solid #ccc; border-radius: 6px;">
+      <div id="historyToggleContainer" class="options-container collapsed" style="margin-top: 1em; border: 1px solid #ccc; border-radius: 16px;">
         <h4 style="margin-top: 0; cursor: pointer;" onclick="toggleHistory()">Recent Itineraries ▾</h4>
         <div id="historyListWrapper" style="margin-top: 8px; display: none;"></div>
       </div>
@@ -282,10 +340,20 @@
           ? ` (${f.aircraftType.name})`
           : ""
       ),
-      airline: f.airlineName,
-      iataCode: f.iataCode,
+      airline:
+        (["9B", "HR"].includes(f.iataCode?.toUpperCase()) || f.airlineName?.toLowerCase() === "rail") && f.operatedBy?.airlineName
+          ? f.operatedBy.airlineName
+          : f.airlineName,
+      iataCode:
+        (["9B", "HR"].includes(f.iataCode?.toUpperCase()) || f.airlineName?.toLowerCase() === "rail") && f.operatedBy?.iataCode
+          ? f.operatedBy.iataCode
+          : f.iataCode,
       bookingClass: f.bookingClass,
-      cabin: f.cabin,
+      cabin:
+        (f.airlineName?.toLowerCase() === "rail") ? "Train" :
+        (f.airlineName?.toLowerCase() === "bus") ? "Bus" :
+        (f.airlineName?.toLowerCase() === "boat") ? "Boat" :
+        f.cabin,
       departure: {
         airport: f.departingFrom.airportCode,
         city: f.departingFrom.cityName,
@@ -315,18 +383,25 @@
       const optionsDiv = document.createElement("div");
       optionsDiv.className = "options-container";
       optionsDiv.id = "styleToggleContainer";
-      optionsDiv.style = "margin-bottom: 16px; border: 1px solid #ccc; border-radius: 6px; padding: 12px;";
+      optionsDiv.style = "margin-bottom: 16px; border: 1px solid #ccc; border-radius: 16px; padding: 12px;";
       optionsDiv.innerHTML = `
     <h4 style="margin-top: 0; cursor: pointer;" onclick="toggleFormattingOptions()">Formatting Options ▾</h4>
     <div id="formattingOptionsBody" style="margin-top: 8px; display: none;">
-      <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px;">
-        <input type="checkbox" id="styleToggle" checked />
+      <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer;">
+        <span id="styleToggle" class="checkbox" data-checked="true"></span>
         <span style="white-space: nowrap;">Include Itinerary Summary</span>
       </label>
     </div>
   `;
       document.querySelector(".output-container").prepend(optionsDiv);
-      document.getElementById("styleToggle").addEventListener("change", () => {
+      // Custom checkbox event handler
+      const styleToggle = document.getElementById("styleToggle");
+      styleToggle.addEventListener("click", () => {
+        const checked = styleToggle.getAttribute("data-checked") === "true";
+        styleToggle.setAttribute("data-checked", checked ? "false" : "true");
+        // Toggle the icon visibility
+        const icon = styleToggle.querySelector(".missive-icon");
+        if (icon) icon.style.display = checked ? "none" : "inline-block";
         renderFlightTableFromInternalFormat(
           { result: { itinerary: window._cachedFormattedFlights } },
           "",
@@ -345,8 +420,12 @@
     // Ensure preTableHtml is only added once and not overwritten.
     let html = preTableHtml;
 
-    // Check style toggle
-    const showSummaries = document.getElementById("styleToggle")?.checked !== false;
+    // Check style toggle (custom Missive-style checkbox)
+    let showSummaries = true;
+    const styleToggleEl = document.getElementById("styleToggle");
+    if (styleToggleEl) {
+      showSummaries = styleToggleEl.getAttribute("data-checked") !== "false";
+    }
 
     // Build itinerary summary based strictly on the start and end of each journey as rendered in the "Flight 1", "Flight 2", etc. blocks
     if (showSummaries && flights.length > 0) {
@@ -436,7 +515,7 @@
             <td class="logo-cell">${logo ? `<img src="${logo}" alt="${f.airline} logo">` : ""}</td>
             <td>${formattedDate}</td>
             <td>
-                          <div>${
+              <div>${
                 (["9B", "HR"].includes(f.iataCode?.toUpperCase()) || f.airline?.toLowerCase() === "rail") && f.operatedBy?.airlineName
                   ? f.operatedBy.airlineName
                   : f.airline
@@ -458,6 +537,10 @@
               const isAltTransport =
                 ["train", "bus", "boat", "ferry", "launch - boat"].includes(type) ||
                 (f.airlineName && f.airlineName.toLowerCase() === "rail");
+              // Updated cabin cell rendering logic to handle other modes
+              if (f.airline?.toLowerCase() === "rail" || f.airlineName?.toLowerCase() === "rail") return "Train";
+              if (f.airline?.toLowerCase() === "bus" || f.airlineName?.toLowerCase() === "bus") return "Bus";
+              if (f.airline?.toLowerCase() === "boat" || f.airlineName?.toLowerCase() === "boat") return "Boat";
               return isAltTransport
                 ? f.aircraftType.name
                 : (f.cabin && f.cabin !== "NULL" ? f.cabin : (f.bookingClass || ""));
@@ -594,6 +677,10 @@
           const isAltTransport =
             ["train", "bus", "boat", "ferry", "launch - boat"].includes(type) ||
             (f.airlineName && f.airlineName.toLowerCase() === "rail");
+          // Updated cabin cell rendering logic to handle other modes
+          if (f.airline?.toLowerCase() === "rail" || f.airlineName?.toLowerCase() === "rail") return "Train";
+          if (f.airline?.toLowerCase() === "bus" || f.airlineName?.toLowerCase() === "bus") return "Bus";
+          if (f.airline?.toLowerCase() === "boat" || f.airlineName?.toLowerCase() === "boat") return "Boat";
           return isAltTransport
             ? f.aircraftType.name
             : (f.cabin && f.cabin !== "NULL" ? f.cabin : (f.bookingClass || ""));
@@ -1051,10 +1138,20 @@ el.style.whiteSpace = "nowrap";
             ? ` (${f.aircraftType.name})`
             : ""
         ),
-        airline: f.airlineName,
-        iataCode: f.iataCode,
+        airline:
+          (["9B", "HR"].includes(f.iataCode?.toUpperCase()) || f.airlineName?.toLowerCase() === "rail") && f.operatedBy?.airlineName
+            ? f.operatedBy.airlineName
+            : f.airlineName,
+        iataCode:
+          (["9B", "HR"].includes(f.iataCode?.toUpperCase()) || f.airlineName?.toLowerCase() === "rail") && f.operatedBy?.iataCode
+            ? f.operatedBy.iataCode
+            : f.iataCode,
         bookingClass: f.bookingClass,
-        cabin: f.cabin,
+        cabin:
+          (f.airlineName?.toLowerCase() === "rail") ? "Train" :
+          (f.airlineName?.toLowerCase() === "bus") ? "Bus" :
+          (f.airlineName?.toLowerCase() === "boat") ? "Boat" :
+          f.cabin,
         departure: {
           airport: f.departingFrom.airportCode,
           city: f.departingFrom.cityName,
@@ -1084,18 +1181,24 @@ el.style.whiteSpace = "nowrap";
         const optionsDiv = document.createElement("div");
         optionsDiv.className = "options-container";
         optionsDiv.id = "styleToggleContainer";
-        optionsDiv.style = "margin-bottom: 16px; border: 1px solid #ccc; border-radius: 6px; padding: 12px;";
+        optionsDiv.style = "margin-bottom: 16px; border: 1px solid #ccc; border-radius: 16px; padding: 12px;";
         optionsDiv.innerHTML = `
           <h4 style="margin-top: 0; cursor: pointer;" onclick="toggleFormattingOptions()">Formatting Options ▾</h4>
           <div id="formattingOptionsBody" style="margin-top: 8px; display: none;">
-            <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px;">
-              <input type="checkbox" id="styleToggle" checked />
+            <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer;">
+              <span id="styleToggle" class="checkbox" data-checked="true"></span>
               <span style="white-space: nowrap;">Include Itinerary Summary</span>
             </label>
           </div>
         `;
         document.querySelector(".output-container").prepend(optionsDiv);
-        document.getElementById("styleToggle").addEventListener("change", () => {
+        const styleToggle = document.getElementById("styleToggle");
+        styleToggle.addEventListener("click", () => {
+          const checked = styleToggle.getAttribute("data-checked") === "true";
+          styleToggle.setAttribute("data-checked", checked ? "false" : "true");
+          // Toggle the icon visibility
+          const icon = styleToggle.querySelector(".missive-icon");
+          if (icon) icon.style.display = checked ? "none" : "inline-block";
           renderFlightTableFromInternalFormat(
             { result: { itinerary: window._cachedFormattedFlights } },
             "",
@@ -1132,9 +1235,26 @@ el.style.whiteSpace = "nowrap";
     header.textContent = isOpen ? "Formatting Options ▴" : "Formatting Options ▾";
   }
 
-  // Initialize history on page load
+  // Initialize history and custom checkbox events on page load
   document.addEventListener("DOMContentLoaded", () => {
     renderHistoryList();
+    // If the output container exists and the styleToggle is present, ensure proper event and default state
+    const styleToggle = document.getElementById("styleToggle");
+    if (styleToggle && !styleToggle.hasAttribute("_missive_cb_init")) {
+      styleToggle.setAttribute("_missive_cb_init", "1");
+      styleToggle.addEventListener("click", () => {
+        const checked = styleToggle.getAttribute("data-checked") === "true";
+        styleToggle.setAttribute("data-checked", checked ? "false" : "true");
+        // Toggle the icon visibility
+        const icon = styleToggle.querySelector(".missive-icon");
+        if (icon) icon.style.display = checked ? "none" : "inline-block";
+        renderFlightTableFromInternalFormat(
+          { result: { itinerary: window._cachedFormattedFlights } },
+          "",
+          window._cachedPassengerNames
+        );
+      });
+    }
   });
   // Only show the header if not inside an iframe
   if (window.top === window.self) {
