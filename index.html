@@ -277,7 +277,11 @@
     let html = "";
 
     const formattedFlights = flights.map(f => ({
-      flightNumber: f.flightNumber,
+      flightNumber: f.flightNumber + (
+        ["train", "bus"].includes(f.aircraftType?.name?.toLowerCase())
+          ? ` (${f.aircraftType.name})`
+          : ""
+      ),
       airline: f.airlineName,
       iataCode: f.iataCode,
       bookingClass: f.bookingClass,
@@ -297,7 +301,8 @@
         time: f.arrivingAt.time.split("T")[1].substring(0, 5)
       },
       duration: `${(f.flightDuration.days * 24 + f.flightDuration.hours)}h ${f.flightDuration.minutes}m`,
-      operatedBy: f.operatedBy
+      operatedBy: f.operatedBy,
+      aircraftType: f.aircraftType // preserve for downstream rendering
     }));
 
     // Store formatted data in global variables for checkbox toggling
@@ -393,74 +398,95 @@
     }
 
     // If showSummaries is false, render a single unified table and return.
-    if (!showSummaries) {
-      const allFlights = groups.flatMap(group => group.flights);
-      const showCabin = allFlights.some(f => f.cabin);
-      const transitTimes = allFlights.map((f, i, arr) => {
-        if (i >= arr.length - 1) return null;
-        const currArrival = new Date(`${f.arrival.date}T${f.arrival.time}`);
-        const nextDeparture = new Date(`${arr[i + 1].departure.date}T${arr[i + 1].departure.time}`);
-        const diffMs = nextDeparture - currArrival;
-        const diffHrs = diffMs / 1000 / 60 / 60;
-        return diffHrs < 24 ? `${Math.floor(diffHrs)}h ${Math.round((diffHrs % 1) * 60)}m` : null;
-      });
-      const hasTransit = transitTimes.some(Boolean);
+      if (!showSummaries) {
+        const allFlights = groups.flatMap(group => group.flights);
+        const showCabin = allFlights.some(f => f.cabin);
+        const transitTimes = allFlights.map((f, i, arr) => {
+          if (i >= arr.length - 1) return null;
+          const currArrival = new Date(`${f.arrival.date}T${f.arrival.time}`);
+          const nextDeparture = new Date(`${arr[i + 1].departure.date}T${arr[i + 1].departure.time}`);
+          const diffMs = nextDeparture - currArrival;
+          const diffHrs = diffMs / 1000 / 60 / 60;
+          return diffHrs < 24 ? `${Math.floor(diffHrs)}h ${Math.round((diffHrs % 1) * 60)}m` : null;
+        });
+        const hasTransit = transitTimes.some(Boolean);
 
-      html += `<table>
-        <tr>
-          <th></th>
-          <th>Date</th>
-          <th>Airline</th>
-          <th>Flight No</th>
-          ${showCabin ? '<th>Cabin</th>' : ''}
-          <th colspan="2">Departs</th>
-          <th colspan="2">Arrives</th>
-          <th>Duration</th>
-          ${hasTransit ? '<th>Transit</th>' : ''}
-        </tr>`;
+        html += `<table>
+          <tr>
+            <th></th>
+            <th>Date</th>
+            <th>Airline</th>
+            <th>Flight No</th>
+            ${showCabin ? '<th>Cabin</th>' : ''}
+            <th colspan="2">Departs</th>
+            <th colspan="2">Arrives</th>
+            <th>Duration</th>
+            ${hasTransit ? '<th>Transit</th>' : ''}
+          </tr>`;
 
-      allFlights.forEach((f, i) => {
-        const logo = getAirlineLogo(f.iataCode);
-        const depDate = new Date(f.departure.date);
-        const formattedDate = depDate.toLocaleDateString("en-GB", {
-          weekday: "short", day: "numeric", month: "short"
+        allFlights.forEach((f, i) => {
+          const logo = getAirlineLogo(f.iataCode);
+          const depDate = new Date(f.departure.date);
+          const formattedDate = depDate.toLocaleDateString("en-GB", {
+            weekday: "short", day: "numeric", month: "short"
+          });
+
+          html += `
+          <tr>
+            <td class="logo-cell">${logo ? `<img src="${logo}" alt="${f.airline} logo">` : ""}</td>
+            <td>${formattedDate}</td>
+            <td>
+                          <div>${
+                (["9B", "HR"].includes(f.iataCode?.toUpperCase()) || f.airline?.toLowerCase() === "rail") && f.operatedBy?.airlineName
+                  ? f.operatedBy.airlineName
+                  : f.airline
+              }</div>
+              ${
+                (["9B", "HR"].includes(f.iataCode?.toUpperCase()) || f.airline?.toLowerCase() === "rail") || !f.operatedBy?.airlineName
+                  ? ""
+                  : `<div class="operated-by">Operated by ${f.operatedBy.airlineName}</div>`
+              }
+            </td>
+            <td style="white-space: nowrap;">
+              ${(() => {
+                const number = f.flightNumber.replace(/[^\d]/g, "");
+                return number;
+              })()}
+            </td>
+            ${showCabin ? `<td>${(() => {
+              const type = f.aircraftType?.name?.toLowerCase();
+              const isAltTransport =
+                ["train", "bus", "boat", "ferry", "launch - boat"].includes(type) ||
+                (f.airlineName && f.airlineName.toLowerCase() === "rail");
+              return isAltTransport
+                ? f.aircraftType.name
+                : (f.cabin && f.cabin !== "NULL" ? f.cabin : (f.bookingClass || ""));
+            })()}</td>` : ""}
+            <td colspan="2">
+              ${f.departure.airportName} (${f.departure.airport})<br>
+              <strong>${formatTime(f.departure.time)}</strong>
+            </td>
+            <td colspan="2">
+              ${f.arrival.airportName} (${f.arrival.airport})<br>
+              <strong>${(() => {
+                const dep = new Date(`${f.departure.date}T${f.departure.time}`);
+                const arr = new Date(`${f.arrival.date}T${f.arrival.time}`);
+                const formatted = formatTime(f.arrival.time);
+                return arr.getDate() !== dep.getDate()
+                  ? `${formatted} <span style="color: #555;">(On ${arr.toLocaleDateString("en-GB", { day: "numeric", month: "short" })})</span>`
+                  : formatted;
+              })()}</strong>
+            </td>
+            <td>${f.duration}</td>
+            ${hasTransit ? `<td>${transitTimes[i] || ""}</td>` : ""}
+          </tr>`;
         });
 
-        html += `
-        <tr>
-          <td class="logo-cell">${logo ? `<img src="${logo}" alt="${f.airline} logo">` : ""}</td>
-          <td>${formattedDate}</td>
-          <td>
-            <div>${f.airline}</div>
-            ${f.operatedBy?.airlineName ? `<div class="operated-by">Operated by ${f.operatedBy.airlineName}</div>` : ""}
-          </td>
-          <td>${f.flightNumber.replace(/[^\d]/g, "")}</td>
-          ${showCabin ? `<td>${f.cabin || f.bookingClass}</td>` : ""}
-          <td colspan="2">
-            ${f.departure.airportName} (${f.departure.airport})<br>
-            <strong>${formatTime(f.departure.time)}</strong>
-          </td>
-          <td colspan="2">
-            ${f.arrival.airportName} (${f.arrival.airport})<br>
-            <strong>${(() => {
-              const dep = new Date(`${f.departure.date}T${f.departure.time}`);
-              const arr = new Date(`${f.arrival.date}T${f.arrival.time}`);
-              const formatted = formatTime(f.arrival.time);
-              return arr.getDate() !== dep.getDate()
-                ? `${formatted} <span style="color: #555;">(On ${arr.toLocaleDateString("en-GB", { day: "numeric", month: "short" })})</span>`
-                : formatted;
-            })()}</strong>
-          </td>
-          <td>${f.duration}</td>
-          ${hasTransit ? `<td>${transitTimes[i] || ""}</td>` : ""}
-        </tr>`;
-      });
-
-      html += "</table>";
-      document.getElementById("flightTableWrapper").innerHTML = html;
-      document.getElementById("copyButton").style.display = "inline-block";
-      return;
-    }
+        html += "</table>";
+        document.getElementById("flightTableWrapper").innerHTML = html;
+        document.getElementById("copyButton").style.display = "inline-block";
+        return;
+      }
 
     groups.forEach((group, gIndex) => {
       const showCabin = group.flights.some(f => f.cabin);
@@ -552,15 +578,26 @@
       // Insert journey separator rows
       let rows = "";
       group.flights.forEach((f, i) => {
-        const logoIata = f.iataCode;
-        const logo = getAirlineLogo(logoIata);
+        const logo = getAirlineLogo(
+          (["9B", "HR"].includes(f.iataCode?.toUpperCase()) || f.airline?.toLowerCase() === "rail") && f.operatedBy?.iataCode
+            ? f.operatedBy.iataCode
+            : f.iataCode
+        );
         const depDate = new Date(f.departure.date);
         const formattedDate = depDate.toLocaleDateString("en-GB", {
           weekday: "short", day: "numeric", month: "short"
         });
         // Only show the scheduled flight duration per row (do not add transit)
         const duration = f.duration;
-        const cabinCell = showCabin ? `<td>${f.cabin || f.bookingClass}</td>` : "";
+        const cabinCell = showCabin ? `<td>${(() => {
+          const type = f.aircraftType?.name?.toLowerCase();
+          const isAltTransport =
+            ["train", "bus", "boat", "ferry", "launch - boat"].includes(type) ||
+            (f.airlineName && f.airlineName.toLowerCase() === "rail");
+          return isAltTransport
+            ? f.aircraftType.name
+            : (f.cabin && f.cabin !== "NULL" ? f.cabin : (f.bookingClass || ""));
+        })()}</td>` : "";
 
         const isNewJourney = (i === 0 || (() => {
           const prev = group.flights[i - 1];
@@ -640,10 +677,23 @@
             <td class="logo-cell">${logo ? `<img src="${logo}" alt="${f.airline} logo">` : ""}</td>
             <td>${formattedDate}</td>
             <td>
-              <div>${f.airline}</div>
-              ${f.operatedBy?.airlineName ? `<div class="operated-by">Operated by ${f.operatedBy.airlineName}</div>` : ""}
+              <div>${
+                (["9B", "HR"].includes(f.iataCode?.toUpperCase()) || f.airline?.toLowerCase() === "rail") && f.operatedBy?.airlineName
+                  ? f.operatedBy.airlineName
+                  : f.airline
+              }</div>
+              ${
+                (["9B", "HR"].includes(f.iataCode?.toUpperCase()) || f.airline?.toLowerCase() === "rail") || !f.operatedBy?.airlineName
+                  ? ""
+                  : `<div class="operated-by">Operated by ${f.operatedBy.airlineName}</div>`
+              }
             </td>
-            <td>${f.flightNumber.replace(/[^\d]/g, "")}</td>
+            <td style="white-space: nowrap;">
+              ${(() => {
+                const number = f.flightNumber.replace(/[^\d]/g, "");
+                return number;
+              })()}
+            </td>
             ${cabinCell}
             <td colspan="2">
               ${f.departure.airportName} (${f.departure.airport})<br>
@@ -739,12 +789,30 @@ el.style.whiteSpace = "nowrap";
       el.style.lineHeight = "1.4";
     });
 
-    // Explicitly set fixed dimensions for airline logos in copied table as inline style attribute (stricter for email compatibility)
+    // Explicitly set fixed dimensions for airline logos and transport icons in copied table as inline style attribute (stricter for email compatibility)
     clone.querySelectorAll("td img").forEach(el => {
       el.removeAttribute("style");
       el.removeAttribute("height");
-      el.setAttribute("width", "100");
-      el.setAttribute("style", "display:inline-block; vertical-align:middle; object-fit:contain; max-height:50px;");
+      el.removeAttribute("width");
+
+      const isTransportIcon =
+        el.src.includes("/images/train.png") ||
+        el.src.includes("/images/bus.png") ||
+        el.src.includes("/images/boat.png");
+
+      if (isTransportIcon) {
+        el.setAttribute(
+          "style",
+          "height:14px; width:auto; vertical-align:text-bottom; margin-right:4px; display:inline-block; object-fit:contain;"
+        );
+        el.width = 14;
+      } else {
+        el.setAttribute(
+          "style",
+          "width:100px; max-width:100px; height:auto; max-height:35px; display:block; margin:0 auto; object-fit:contain;"
+        );
+        el.width = 100;
+      }
     });
 
     // Prepare hidden container
@@ -978,7 +1046,11 @@ el.style.whiteSpace = "nowrap";
       const flights = item.data?.data?.flights || [];
       const passengers = item.data?.data?.passengers || [];
       const formattedFlights = flights.map(f => ({
-        flightNumber: f.flightNumber,
+        flightNumber: f.flightNumber + (
+          ["train", "bus"].includes(f.aircraftType?.name?.toLowerCase())
+            ? ` (${f.aircraftType.name})`
+            : ""
+        ),
         airline: f.airlineName,
         iataCode: f.iataCode,
         bookingClass: f.bookingClass,
@@ -998,7 +1070,8 @@ el.style.whiteSpace = "nowrap";
           time: f.arrivingAt.time.split("T")[1].substring(0, 5)
         },
         duration: `${(f.flightDuration.days * 24 + f.flightDuration.hours)}h ${f.flightDuration.minutes}m`,
-        operatedBy: f.operatedBy
+        operatedBy: f.operatedBy,
+        aircraftType: f.aircraftType // preserve for downstream rendering
       }));
 
       window._cachedFormattedFlights = formattedFlights;
