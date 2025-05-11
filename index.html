@@ -289,16 +289,6 @@
     return `https://pnrexpert.b-cdn.net/images/airlines/${iataCode.toLowerCase()}.png`;
   }
 
-  // Helper to get duration in hours and minutes
-  function calculateDuration(depDate, depTime, arrDate, arrTime) {
-    const dep = new Date(`${depDate}T${depTime}`);
-    const arr = new Date(`${arrDate}T${arrTime}`);
-    const diffMs = arr - dep;
-    const diffMin = Math.floor(diffMs / 60000);
-    const hours = Math.floor(diffMin / 60);
-    const minutes = diffMin % 60;
-    return `${hours}h ${minutes}m`;
-  }
 
   // Helper to group flights into outbound/inbound based on direction
   function groupFlightsByDirection(flights) {
@@ -372,7 +362,8 @@
       },
       duration: `${(f.flightDuration.days * 24 + f.flightDuration.hours)}h ${f.flightDuration.minutes}m`,
       operatedBy: f.operatedBy,
-      aircraftType: f.aircraftType // preserve for downstream rendering
+      aircraftType: f.aircraftType, // preserve for downstream rendering
+      transitTime: f.transitTime
     }));
 
     // Store formatted data in global variables for checkbox toggling
@@ -482,13 +473,16 @@
       if (!showSummaries) {
         const allFlights = groups.flatMap(group => group.flights);
         const showCabin = allFlights.some(f => f.cabin);
-        const transitTimes = allFlights.map((f, i, arr) => {
-          if (i >= arr.length - 1) return null;
-          const currArrival = new Date(`${f.arrival.date}T${f.arrival.time}`);
-          const nextDeparture = new Date(`${arr[i + 1].departure.date}T${arr[i + 1].departure.time}`);
-          const diffMs = nextDeparture - currArrival;
-          const diffHrs = diffMs / 1000 / 60 / 60;
-          return diffHrs < 24 ? `${Math.floor(diffHrs)}h ${Math.round((diffHrs % 1) * 60)}m` : null;
+        const transitTimes = allFlights.map(f => {
+          if (
+            f.transitTime &&
+            (typeof f.transitTime.hours === "number" || typeof f.transitTime.minutes === "number")
+          ) {
+            const h = f.transitTime.hours || 0;
+            const m = f.transitTime.minutes || 0;
+            return `${h}h ${m}m`;
+          }
+          return null;
         });
         const hasTransit = transitTimes.some(Boolean);
 
@@ -575,13 +569,16 @@
 
     groups.forEach((group, gIndex) => {
       const showCabin = group.flights.some(f => f.cabin);
-      const transitTimes = group.flights.map((f, i, arr) => {
-        if (i >= arr.length - 1) return null;
-        const currArrival = new Date(`${f.arrival.date}T${f.arrival.time}`);
-        const nextDeparture = new Date(`${arr[i + 1].departure.date}T${arr[i + 1].departure.time}`);
-        const diffMs = nextDeparture - currArrival;
-        const diffHrs = diffMs / 1000 / 60 / 60;
-        return diffHrs < 24 ? `${Math.floor(diffHrs)}h ${Math.round((diffHrs % 1) * 60)}m` : null;
+      const transitTimes = group.flights.map(f => {
+        if (
+          f.transitTime &&
+          (typeof f.transitTime.hours === "number" || typeof f.transitTime.minutes === "number")
+        ) {
+          const h = f.transitTime.hours || 0;
+          const m = f.transitTime.minutes || 0;
+          return `${h}h ${m}m`;
+        }
+        return null;
       });
       const hasTransit = transitTimes.some(t => t !== null);
 
@@ -1177,7 +1174,8 @@ el.style.whiteSpace = "nowrap";
         },
         duration: `${(f.flightDuration.days * 24 + f.flightDuration.hours)}h ${f.flightDuration.minutes}m`,
         operatedBy: f.operatedBy,
-        aircraftType: f.aircraftType // preserve for downstream rendering
+        aircraftType: f.aircraftType, // preserve for downstream rendering
+        transitTime: f.transitTime
       }));
 
       window._cachedFormattedFlights = formattedFlights;
@@ -1285,7 +1283,7 @@ if (window.top === window.self) {
 
 </div>
 <footer style="margin-top: 48px; text-align: center; font-size: 8px; color: #888;">
-  Travel Tailor PNR Converter – Version 1.0 (0905b)
+  Travel Tailor PNR Converter – Version 1.0.1
 <br>
 </footer>
 </body>
