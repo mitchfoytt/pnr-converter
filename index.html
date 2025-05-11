@@ -278,10 +278,12 @@
     <div style="overflow-x: auto;">
       <div id="flightTableWrapper"></div>
     </div>
+    <pre id="apiDebugLog" style="display:none; background:#eee; border:1px solid #ccc; padding:8px; font-size:12px; font-family:monospace; white-space:pre-wrap; overflow:auto; margin-top:12px;"></pre>
   </div>
 </main>
 
 <script>
+  window._latestApiResponse = null;
   function getAirlineLogo(iataCode) {
     if (!iataCode) return "";
     return `https://pnrexpert.b-cdn.net/images/airlines/${iataCode.toLowerCase()}.png`;
@@ -951,6 +953,7 @@ el.style.whiteSpace = "nowrap";
     })
     .then(res => res.json())
     .then(data => {
+      window._latestApiResponse = data;
       console.log("Raw API Response:", data);
       submitBtn.classList.remove("button-async--loading");
       if (!data || !data.data || !Array.isArray(data.data.flights) || data.data.flights.length === 0) {
@@ -1129,6 +1132,12 @@ el.style.whiteSpace = "nowrap";
   function loadFromHistory(index) {
     const history = JSON.parse(localStorage.getItem("itineraryHistory") || "[]");
     const item = history[index];
+    window._latestApiResponse = item.data;
+    // Update debug area if visible
+    const el = document.getElementById("apiDebugLog");
+    if (el && el.style.display !== "none") {
+      el.textContent = JSON.stringify(window._latestApiResponse, null, 2);
+    }
     if (item) {
       const flights = item.data?.data?.flights || [];
       const passengers = item.data?.data?.passengers || [];
@@ -1256,16 +1265,27 @@ el.style.whiteSpace = "nowrap";
       });
     }
   });
-  // Only show the header if not inside an iframe
-  if (window.top === window.self) {
-    const header = document.querySelector(".browser-header");
-    if (header) header.style.display = "block";
+</script>
+
+<script>
+document.addEventListener("keydown", (e) => {
+  if (e.shiftKey && !e.ctrlKey && e.key.toLowerCase() === "d") {
+    const el = document.getElementById("apiDebugLog");
+    if (!el) return;
+    el.textContent = JSON.stringify(window._latestApiResponse, null, 2);
+    el.style.display = el.style.display === "none" ? "block" : "none";
   }
+});
+// Only show the header if not inside an iframe
+if (window.top === window.self) {
+  const header = document.querySelector(".browser-header");
+  if (header) header.style.display = "block";
+}
 </script>
 
 </div>
 <footer style="margin-top: 48px; text-align: center; font-size: 8px; color: #888;">
-  Travel Tailor PNR Converter – Version 1.0 (0905c)
+  Travel Tailor PNR Converter – Version 1.0 (0905b)
 <br>
 </footer>
 </body>
