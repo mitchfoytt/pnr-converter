@@ -377,21 +377,31 @@
       optionsDiv.className = "options-container";
       optionsDiv.id = "styleToggleContainer";
       optionsDiv.style = "margin-bottom: 16px; border: 1px solid #ccc; border-radius: 16px; padding: 12px;";
+      // Determine initial checked state for summary toggle from localStorage
+      const showSummaries = localStorage.getItem("showItinerarySummary") !== "false";
+      // Determine initial checked state for traveller names toggle from localStorage
+      const showTravellerNames = localStorage.getItem("showTravellerNames") !== "false";
+      // Build the HTML for both toggles
       optionsDiv.innerHTML = `
     <h4 style="margin-top: 0; cursor: pointer;" onclick="toggleFormattingOptions()">Formatting Options ▾</h4>
     <div id="formattingOptionsBody" style="margin-top: 8px; display: none;">
       <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer;">
-        <span id="styleToggle" class="checkbox" data-checked="true"></span>
+        <span id="styleToggle" class="checkbox" data-checked="${showSummaries ? "true" : "false"}"></span>
         <span style="white-space: nowrap;">Include Itinerary Summary</span>
+      </label>
+      <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; opacity: ${passengerNames.length ? 1 : 0.5}; margin-left: 20px;">
+        <span id="travellerToggle" class="checkbox" data-checked="${passengerNames.length ? (showTravellerNames ? "true" : "false") : "false"}" ${passengerNames.length ? "" : "data-disabled='true'"}></span>
+        <span style="white-space: nowrap;">Include Traveller Names</span>
       </label>
     </div>
   `;
       document.querySelector(".output-container").prepend(optionsDiv);
-      // Custom checkbox event handler
+      // Custom checkbox event handler for summary toggle
       const styleToggle = document.getElementById("styleToggle");
       styleToggle.addEventListener("click", () => {
         const checked = styleToggle.getAttribute("data-checked") === "true";
         styleToggle.setAttribute("data-checked", checked ? "false" : "true");
+        localStorage.setItem("showItinerarySummary", checked ? "false" : "true");
         // Toggle the icon visibility
         const icon = styleToggle.querySelector(".missive-icon");
         if (icon) icon.style.display = checked ? "none" : "inline-block";
@@ -401,6 +411,20 @@
           window._cachedPassengerNames
         );
       });
+      // Custom checkbox event handler for traveller names toggle
+      const travellerToggle = document.getElementById("travellerToggle");
+      if (passengerNames.length) {
+        travellerToggle.addEventListener("click", () => {
+          const checked = travellerToggle.getAttribute("data-checked") === "true";
+          travellerToggle.setAttribute("data-checked", checked ? "false" : "true");
+          localStorage.setItem("showTravellerNames", checked ? "false" : "true");
+          renderFlightTableFromInternalFormat(
+            { result: { itinerary: window._cachedFormattedFlights } },
+            "",
+            window._cachedPassengerNames
+          );
+        });
+      }
     }
 
     renderFlightTableFromInternalFormat({ result: { itinerary: formattedFlights } }, html, passengerNames);
@@ -415,9 +439,18 @@
 
     // Check style toggle (custom Missive-style checkbox)
     let showSummaries = true;
+    let showTravellerNames = true;
     const styleToggleEl = document.getElementById("styleToggle");
     if (styleToggleEl) {
       showSummaries = styleToggleEl.getAttribute("data-checked") !== "false";
+    } else {
+      showSummaries = localStorage.getItem("showItinerarySummary") !== "false";
+    }
+    const travellerToggleEl = document.getElementById("travellerToggle");
+    if (travellerToggleEl) {
+      showTravellerNames = travellerToggleEl.getAttribute("data-checked") !== "false";
+    } else {
+      showTravellerNames = localStorage.getItem("showTravellerNames") !== "false";
     }
 
     // Build itinerary summary based strictly on the start and end of each journey as rendered in the "Flight 1", "Flight 2", etc. blocks
@@ -462,11 +495,13 @@
 
       html += `<h3 style="margin-bottom:0;">Itinerary: ${summary}</h3>`;
     }
-
-    if (passengerNames.length === 1) {
-      html += `<br><p><strong>Traveller:</strong><br>${passengerNames[0]}</p>`;
-    } else if (passengerNames.length > 1) {
-      html += `<br><p><strong>Travellers:</strong><br>${passengerNames.join("<br>")}</p>`;
+    // Only show passenger names if showTravellerNames is true
+    if (showTravellerNames) {
+      if (passengerNames.length === 1) {
+        html += `<br><p><strong>Traveller:</strong><br>${passengerNames[0]}</p>`;
+      } else if (passengerNames.length > 1) {
+        html += `<br><p><strong>Travellers:</strong><br>${passengerNames.join("<br>")}</p>`;
+      }
     }
 
     // If showSummaries is false, render a single unified table and return.
@@ -1182,30 +1217,55 @@ el.style.whiteSpace = "nowrap";
       window._cachedPassengerNames = passengers.map(p => p.name).filter(Boolean);
       document.querySelector(".output-container").style.display = "block";
 
-      // Add formatting toggle if needed
+      // Remove existing toggle container before injecting new options
       const existingToggle = document.getElementById("styleToggleContainer");
-      if (!existingToggle || !document.querySelector(".output-container").contains(existingToggle)) {
-        const optionsDiv = document.createElement("div");
-        optionsDiv.className = "options-container";
-        optionsDiv.id = "styleToggleContainer";
-        optionsDiv.style = "margin-bottom: 16px; border: 1px solid #ccc; border-radius: 16px; padding: 12px;";
-        optionsDiv.innerHTML = `
-          <h4 style="margin-top: 0; cursor: pointer;" onclick="toggleFormattingOptions()">Formatting Options ▾</h4>
-          <div id="formattingOptionsBody" style="margin-top: 8px; display: none;">
-            <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer;">
-              <span id="styleToggle" class="checkbox" data-checked="true"></span>
-              <span style="white-space: nowrap;">Include Itinerary Summary</span>
-            </label>
-          </div>
-        `;
-        document.querySelector(".output-container").prepend(optionsDiv);
-        const styleToggle = document.getElementById("styleToggle");
-        styleToggle.addEventListener("click", () => {
-          const checked = styleToggle.getAttribute("data-checked") === "true";
-          styleToggle.setAttribute("data-checked", checked ? "false" : "true");
-          // Toggle the icon visibility
-          const icon = styleToggle.querySelector(".missive-icon");
-          if (icon) icon.style.display = checked ? "none" : "inline-block";
+      if (existingToggle) existingToggle.remove();
+
+      // Add formatting toggle
+      const optionsDiv = document.createElement("div");
+      optionsDiv.className = "options-container";
+      optionsDiv.id = "styleToggleContainer";
+      optionsDiv.style = "margin-bottom: 16px; border: 1px solid #ccc; border-radius: 16px; padding: 12px;";
+      // Determine initial checked state for summary toggle from localStorage
+      const showSummaries = localStorage.getItem("showItinerarySummary") !== "false";
+      // Determine initial checked state for traveller names toggle from localStorage
+      const showTravellerNames = localStorage.getItem("showTravellerNames") !== "false";
+      // Use window._cachedPassengerNames for up-to-date passenger names
+      const hasPassengerNames = Array.isArray(window._cachedPassengerNames) && window._cachedPassengerNames.length > 0;
+      optionsDiv.innerHTML = `
+        <h4 style="margin-top: 0; cursor: pointer;" onclick="toggleFormattingOptions()">Formatting Options ▾</h4>
+        <div id="formattingOptionsBody" style="margin-top: 8px; display: none;">
+          <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer;">
+            <span id="styleToggle" class="checkbox" data-checked="${showSummaries ? "true" : "false"}"></span>
+            <span style="white-space: nowrap;">Include Itinerary Summary</span>
+          </label>
+          <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; opacity: ${hasPassengerNames ? 1 : 0.5}; margin-left: 20px;">
+            <span id="travellerToggle" class="checkbox" data-checked="${hasPassengerNames && showTravellerNames ? "true" : "false"}" ${hasPassengerNames ? "" : "data-disabled='true'"}></span>
+            <span style="white-space: nowrap;">Include Traveller Names</span>
+          </label>
+        </div>
+      `;
+      document.querySelector(".output-container").prepend(optionsDiv);
+      const styleToggle = document.getElementById("styleToggle");
+      styleToggle.addEventListener("click", () => {
+        const checked = styleToggle.getAttribute("data-checked") === "true";
+        styleToggle.setAttribute("data-checked", checked ? "false" : "true");
+        localStorage.setItem("showItinerarySummary", checked ? "false" : "true");
+        // Toggle the icon visibility
+        const icon = styleToggle.querySelector(".missive-icon");
+        if (icon) icon.style.display = checked ? "none" : "inline-block";
+        renderFlightTableFromInternalFormat(
+          { result: { itinerary: window._cachedFormattedFlights } },
+          "",
+          window._cachedPassengerNames
+        );
+      });
+      const travellerToggle = document.getElementById("travellerToggle");
+      if (window._cachedPassengerNames.length) {
+        travellerToggle.addEventListener("click", () => {
+          const checked = travellerToggle.getAttribute("data-checked") === "true";
+          travellerToggle.setAttribute("data-checked", checked ? "false" : "true");
+          localStorage.setItem("showTravellerNames", checked ? "false" : "true");
           renderFlightTableFromInternalFormat(
             { result: { itinerary: window._cachedFormattedFlights } },
             "",
@@ -1252,6 +1312,7 @@ el.style.whiteSpace = "nowrap";
       styleToggle.addEventListener("click", () => {
         const checked = styleToggle.getAttribute("data-checked") === "true";
         styleToggle.setAttribute("data-checked", checked ? "false" : "true");
+        localStorage.setItem("showItinerarySummary", checked ? "false" : "true");
         // Toggle the icon visibility
         const icon = styleToggle.querySelector(".missive-icon");
         if (icon) icon.style.display = checked ? "none" : "inline-block";
@@ -1261,6 +1322,22 @@ el.style.whiteSpace = "nowrap";
           window._cachedPassengerNames
         );
       });
+    }
+    const travellerToggle = document.getElementById("travellerToggle");
+    if (travellerToggle && !travellerToggle.hasAttribute("_missive_cb_init")) {
+      travellerToggle.setAttribute("_missive_cb_init", "1");
+      if (!travellerToggle.hasAttribute("data-disabled")) {
+        travellerToggle.addEventListener("click", () => {
+          const checked = travellerToggle.getAttribute("data-checked") === "true";
+          travellerToggle.setAttribute("data-checked", checked ? "false" : "true");
+          localStorage.setItem("showTravellerNames", checked ? "false" : "true");
+          renderFlightTableFromInternalFormat(
+            { result: { itinerary: window._cachedFormattedFlights } },
+            "",
+            window._cachedPassengerNames
+          );
+        });
+      }
     }
   });
 </script>
