@@ -297,6 +297,32 @@
 
 <script>
   window._latestApiResponse = null;
+
+const customFlightInfo = {
+  "QR8400|SYD|DOH": { note: "Operated by Qatar Airways for Virgin Australia"},
+  "VA1|SYD|DOH": { note: "Operated by Qatar Airways for Virgin Australia"},
+  "QR8401|DOH|SYD": { note: "Operated by Qatar Airways for Virgin Australia"},
+  "VA2|DOH|SYD": { note: "Operated by Qatar Airways for Virgin Australia"},
+
+  "QR8404|BNE|DOH": { note: "Operated by Qatar Airways for Virgin Australia"},
+  "VA15|BNE|DOH": { note: "Operated by Qatar Airways for Virgin Australia"},
+  "QR8405|DOH|BNE": { note: "Operated by Qatar Airways for Virgin Australia"},
+  "VA16|DOH|BNE": { note: "Operated by Qatar Airways for Virgin Australia"},
+
+  "QR8406|PER|DOH": { note: "Operated by Qatar Airways for Virgin Australia"},
+  "VA21|PER|DOH": { note: "Operated by Qatar Airways for Virgin Australia"},
+  "QR8405|DOH|PER": { note: "Operated by Qatar Airways for Virgin Australia"},
+  "VA22|DOH|PER": { note: "Operated by Qatar Airways for Virgin Australia"},
+
+  "QR8402|MEL|DOH": { note: "Operated by Qatar Airways for Virgin Australia"},
+  "VA7|MEL|DOH": { note: "Operated by Qatar Airways for Virgin Australia"},
+  "QR8403|DOH|MEL": { note: "Operated by Qatar Airways for Virgin Australia"},
+  "VA8|DOH|MEL": { note: "Operated by Qatar Airways for Virgin Australia"},
+
+};
+
+
+
   function getAirlineLogo(iataCode) {
     if (!iataCode) return "";
     return `https://pnrexpert.b-cdn.net/images/airlines/${iataCode.toLowerCase()}.png`;
@@ -522,6 +548,10 @@
         const allFlights = groups.flatMap(group => group.flights);
         const showCabin = allFlights.some(f => f.cabin);
         const transitTimes = allFlights.map(f => {
+          const key = `${f.iataCode}${f.flightNumber.replace(/[^\d]/g, "")}|${f.departure.airport}|${f.arrival.airport}`;
+          if (customFlightInfo[key]?.transit) {
+            return customFlightInfo[key].transit;
+          }
           if (
             f.transitTime &&
             (typeof f.transitTime.hours === "number" || typeof f.transitTime.minutes === "number")
@@ -554,7 +584,7 @@
             weekday: "short", day: "numeric", month: "short"
           });
 
-          html += `
+        html += `
           <tr>
             <td class="logo-cell">${logo ? `<img src="${logo}" alt="${f.airline} logo">` : ""}</td>
             <td>${formattedDate}</td>
@@ -565,14 +595,23 @@
                   : f.airline
               }</div>
               ${
-                (["9B", "HR"].includes(f.iataCode?.toUpperCase()) || f.airline?.toLowerCase() === "rail") || !f.operatedBy?.airlineName
-                  ? ""
-                  : `<div class="operated-by">Operated by ${f.operatedBy.airlineName}</div>`
+                (() => {
+                  const key = `${f.iataCode}${f.flightNumber.replace(/[^\d]/g, "")}|${f.departure.airport}|${f.arrival.airport}`;
+                  const customNote = customFlightInfo[key]?.note;
+                  if (customNote) {
+                    return `<div class="operated-by">${customNote}</div>`;
+                  }
+                  if (["9B", "HR"].includes(f.iataCode?.toUpperCase()) || f.airline?.toLowerCase() === "rail" || !f.operatedBy?.airlineName) {
+                    return "";
+                  }
+                  return `<div class="operated-by">Operated by ${f.operatedBy.airlineName}</div>`;
+                })()
               }
             </td>
             <td style="white-space: nowrap;">
               ${(() => {
                 const number = f.flightNumber.replace(/[^\d]/g, "");
+                // Note: This flight number/city/city key is not used anymore. Only the airline|airport|airport key is supported above.
                 return number;
               })()}
             </td>
@@ -604,7 +643,12 @@
                   : formatted;
               })()}</strong>
             </td>
-            <td>${f.duration}</td>
+            <td>
+              ${f.duration}
+              ${f.techStop?.apt?.cityName && f.techStop?.duration
+                ? `<div class="operated-by">(via ${f.techStop.apt.cityName} – ${f.techStop.duration.hours || 0}h ${f.techStop.duration.minutes || 0}m)</div>`
+                : ""}
+            </td>
             ${hasTransit ? `<td>${transitTimes[i] || ""}</td>` : ""}
           </tr>`;
         });
@@ -618,6 +662,10 @@
     groups.forEach((group, gIndex) => {
       const showCabin = group.flights.some(f => f.cabin);
       const transitTimes = group.flights.map(f => {
+        const key = `${f.iataCode}${f.flightNumber.replace(/[^\d]/g, "")}|${f.departure.airport}|${f.arrival.airport}`;
+        if (customFlightInfo[key]?.transit) {
+          return customFlightInfo[key].transit;
+        }
         if (
           f.transitTime &&
           (typeof f.transitTime.hours === "number" || typeof f.transitTime.minutes === "number")
@@ -817,9 +865,17 @@
                   : f.airline
               }</div>
               ${
-                (["9B", "HR"].includes(f.iataCode?.toUpperCase()) || f.airline?.toLowerCase() === "rail") || !f.operatedBy?.airlineName
-                  ? ""
-                  : `<div class="operated-by">Operated by ${f.operatedBy.airlineName}</div>`
+                (() => {
+                  const key = `${f.iataCode}${f.flightNumber.replace(/[^\d]/g, "")}|${f.departure.airport}|${f.arrival.airport}`;
+                  const customNote = customFlightInfo[key]?.note;
+                  if (customNote) {
+                    return `<div class="operated-by">${customNote}</div>`;
+                  }
+                  if (["9B", "HR"].includes(f.iataCode?.toUpperCase()) || f.airline?.toLowerCase() === "rail" || !f.operatedBy?.airlineName) {
+                    return "";
+                  }
+                  return `<div class="operated-by">Operated by ${f.operatedBy.airlineName}</div>`;
+                })()
               }
             </td>
             <td style="white-space: nowrap;">
@@ -846,7 +902,12 @@
                 return formattedTime;
               })()}</strong>
             </td>
-            <td>${duration}</td>
+            <td>
+              ${duration}
+              ${f.techStop?.apt?.cityName && f.techStop?.duration
+                ? `<div class="operated-by">(via ${f.techStop.apt.cityName} – ${f.techStop.duration.hours || 0}h ${f.techStop.duration.minutes || 0}m)</div>`
+                : ""}
+            </td>
             ${hasTransit ? `<td>${transitTimes[i] || ""}</td>` : ""}
           </tr>
         `;
@@ -1220,7 +1281,11 @@ el.style.whiteSpace = "nowrap";
           date: f.arrivingAt.time.split("T")[0],
           time: f.arrivingAt.time.split("T")[1].substring(0, 5)
         },
-        duration: `${(f.flightDuration.days * 24 + f.flightDuration.hours)}h ${f.flightDuration.minutes}m`,
+        duration: `${(f.flightDuration.days * 24 + f.flightDuration.hours)}h ${f.flightDuration.minutes}m${
+          f.techStop?.apt?.cityName && f.techStop?.duration
+            ? `\n(via ${f.techStop.apt.cityName} – ${f.techStop.duration.hours || 0}h ${f.techStop.duration.minutes || 0}m)`
+            : ""
+        }`,
         operatedBy: f.operatedBy,
         aircraftType: f.aircraftType, // preserve for downstream rendering
         transitTime: f.transitTime
@@ -1373,7 +1438,7 @@ if (window.top === window.self) {
 
 </div>
 <footer style="margin-top: 48px; text-align: center; font-size: 8px; color: #888;">
-  Travel Tailor PNR Converter – Version 1.0.1
+  Travel Tailor PNR Converter – Version 1.0.2
 <br>
 </footer>
 </body>
