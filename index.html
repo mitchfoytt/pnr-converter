@@ -1051,7 +1051,10 @@ el.style.whiteSpace = "nowrap";
 
     fetch("https://pnr-proxy.vercel.app/api/pnr", {
       method: "POST",
-
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxYTc4ZTE3LTU1MTQtNGRhZi1hNDVlLTc0MGFhNDU0YTk4ZCIsImlhdCI6MTc0OTYwMDg4OX0.7lI97dtpiBJqN9eHm3BTZCFFDahOOJvOEjqXCflBZiE"
+      },
       body: JSON.stringify({ pnr })
     })
     .then(res => res.json())
