@@ -328,6 +328,21 @@ const customFlightInfo = {
     return `https://pnrexpert.b-cdn.net/images/airlines/${iataCode.toLowerCase()}.png`;
   }
 
+  // Enable/disable the Traveller Names toggle based on availability
+  function enableTravellerNamesToggle(hasNames) {
+    const toggle = document.getElementById("travellerToggle");
+    const label = toggle ? toggle.parentElement : null;
+    if (!toggle || !label) return;
+
+    if (hasNames) {
+      label.style.opacity = 1;
+      toggle.removeAttribute("data-disabled");
+    } else {
+      label.style.opacity = 0.5;
+      toggle.setAttribute("data-disabled", "true");
+    }
+  }
+
 
   // Helper to group flights into outbound/inbound based on direction
   function groupFlightsByDirection(flights) {
@@ -402,7 +417,8 @@ const customFlightInfo = {
       duration: `${(f.flightDuration.days * 24 + f.flightDuration.hours)}h ${f.flightDuration.minutes}m`,
       operatedBy: f.operatedBy,
       aircraftType: f.aircraftType, // preserve for downstream rendering
-      transitTime: f.transitTime
+      techStop: f.techStop,
+      transitTime: f.transitTime,
     }));
 
     // Store formatted data in global variables for checkbox toggling
@@ -466,6 +482,7 @@ const customFlightInfo = {
       }
     }
 
+      enableTravellerNamesToggle(passengerNames.length > 0);
     renderFlightTableFromInternalFormat({ result: { itinerary: formattedFlights } }, html, passengerNames);
     document.querySelector(".output-container").style.display = "block";
   }
@@ -495,16 +512,17 @@ const customFlightInfo = {
     // Build itinerary summary based strictly on the start and end of each journey as rendered in the "Flight 1", "Flight 2", etc. blocks
     if (showSummaries && flights.length > 0) {
       const journeys = [];
+      const originAirport = flights[0]?.departure?.airport;
       let journeyStartIndex = 0;
 
       for (let i = 0; i < flights.length; i++) {
         const current = flights[i];
         const next = flights[i + 1];
-
         const lastArrival = new Date(`${current.arrival.date}T${current.arrival.time}`);
 
         const shouldSplit = !next || (() => {
-          const nextDeparture = new Date(`${next.departure.date}T${next.departure.time}`);
+          const nextDeparture = next ? new Date(`${next.departure.date}T${next.departure.time}`) : null;
+          if (!nextDeparture) return true;
           const diffHrs = (nextDeparture - lastArrival) / 1000 / 60 / 60;
           return diffHrs >= 24;
         })();
@@ -1053,7 +1071,7 @@ el.style.whiteSpace = "nowrap";
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjMxYTc4ZTE3LTU1MTQtNGRhZi1hNDVlLTc0MGFhNDU0YTk4ZCIsImlhdCI6MTc0OTYwMDg4OX0.7lI97dtpiBJqN9eHm3BTZCFFDahOOJvOEjqXCflBZiE"
+        "Authorization": "bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImM1OTE5NjViLWI0N2QtNDM1MC1iNGNiLTdjODYyNTRmNDg1YiIsImlhdCI6MTc0NjQ4MjEwMH0.HGIbM8jp_uzA8vCBKvUXSPyTSbL-UTA_4k7rSG8gmzA"
       },
       body: JSON.stringify({ pnr })
     })
@@ -1138,13 +1156,15 @@ el.style.whiteSpace = "nowrap";
       // Generate summary label using same logic as table summary
       let summary = "";
       const journeys = [];
+      const originAirport = flights[0]?.departingFrom?.airportCode;
       let journeyStartIndex = 0;
       for (let i = 0; i < flights.length; i++) {
         const current = flights[i];
         const next = flights[i + 1];
         const lastArrival = new Date(`${current.arrivingAt.time}`);
         const shouldSplit = !next || (() => {
-          const nextDeparture = new Date(`${next.departingFrom.time}`);
+          const nextDeparture = next ? new Date(`${next.departingFrom.time}`) : null;
+          if (!nextDeparture) return true;
           return (nextDeparture - lastArrival) / 1000 / 60 / 60 >= 24;
         })();
         if (shouldSplit) {
@@ -1281,14 +1301,11 @@ el.style.whiteSpace = "nowrap";
           date: f.arrivingAt.time.split("T")[0],
           time: f.arrivingAt.time.split("T")[1].substring(0, 5)
         },
-        duration: `${(f.flightDuration.days * 24 + f.flightDuration.hours)}h ${f.flightDuration.minutes}m${
-          f.techStop?.apt?.cityName && f.techStop?.duration
-            ? `\n(via ${f.techStop.apt.cityName} – ${f.techStop.duration.hours || 0}h ${f.techStop.duration.minutes || 0}m)`
-            : ""
-        }`,
+        duration: `${(f.flightDuration.days * 24 + f.flightDuration.hours)}h ${f.flightDuration.minutes}m`,
         operatedBy: f.operatedBy,
         aircraftType: f.aircraftType, // preserve for downstream rendering
-        transitTime: f.transitTime
+        techStop: f.techStop,
+        transitTime: f.transitTime,
       }));
 
       window._cachedFormattedFlights = formattedFlights;
@@ -1352,6 +1369,7 @@ el.style.whiteSpace = "nowrap";
         });
       }
 
+      enableTravellerNamesToggle(window._cachedPassengerNames.length > 0);
       renderFlightTableFromInternalFormat({ result: { itinerary: formattedFlights } }, "", window._cachedPassengerNames);
     }
   }
@@ -1417,6 +1435,12 @@ el.style.whiteSpace = "nowrap";
         });
       }
     }
+    // Normalize traveller toggle state if names are already cached
+    try {
+      if (Array.isArray(window._cachedPassengerNames)) {
+        enableTravellerNamesToggle(window._cachedPassengerNames.length > 0);
+      }
+    } catch (_) {}
   });
 </script>
 
@@ -1438,7 +1462,7 @@ if (window.top === window.self) {
 
 </div>
 <footer style="margin-top: 48px; text-align: center; font-size: 8px; color: #888;">
-  Travel Tailor PNR Converter – Version 1.0.2
+  Travel Tailor PNR Converter – Version 1.0.3
 <br>
 </footer>
 </body>
