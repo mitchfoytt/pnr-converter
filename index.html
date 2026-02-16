@@ -236,7 +236,55 @@
     .checkbox[data-checked="true"]::after {
       display: block;
     }
-</style>
+
+    /* Image paste loading overlay */
+    .image-convert-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.25);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .image-convert-overlay.is-visible {
+      display: flex;
+    }
+    .image-convert-card {
+      background: #fff;
+      border: 1px solid #d0d3d6;
+      border-radius: 16px;
+      padding: 16px 18px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 260px;
+    }
+    .spinner {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 3px solid rgba(34, 102, 237, 0.25);
+      border-top-color: rgba(34, 102, 237, 1);
+      animation: spin 0.8s linear infinite;
+      flex: none;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @media (prefers-color-scheme: dark) {
+      .image-convert-card {
+        background: #2b2b2b;
+        border-color: #444;
+        color: #ddd;
+      }
+      .image-convert-overlay {
+        background: rgba(0,0,0,0.45);
+      }
+    }
+
+  </style>
   <style>
 @media (max-width: 600px) {
   #formattingOptionsBody {
@@ -249,6 +297,54 @@
     margin-left: 0 !important;
   }
 }
+  
+    /* Image paste loading overlay */
+    .image-convert-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.25);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .image-convert-overlay.is-visible {
+      display: flex;
+    }
+    .image-convert-card {
+      background: #fff;
+      border: 1px solid #d0d3d6;
+      border-radius: 16px;
+      padding: 16px 18px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 260px;
+    }
+    .spinner {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 3px solid rgba(34, 102, 237, 0.25);
+      border-top-color: rgba(34, 102, 237, 1);
+      animation: spin 0.8s linear infinite;
+      flex: none;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @media (prefers-color-scheme: dark) {
+      .image-convert-card {
+        background: #2b2b2b;
+        border-color: #444;
+        color: #ddd;
+      }
+      .image-convert-overlay {
+        background: rgba(0,0,0,0.45);
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -258,7 +354,7 @@
       <div class="browser-header" style="display: none;">
         <h3 class="text-xlarge text-800">Travel Tailor - PNR Converter</h3>
       </div>
-      <textarea id="pnrInput" class="input" rows="8" style="width: 100%; height: 200px;" placeholder="Paste PNR here"></textarea>
+      <textarea id="pnrInput" class="input" rows="8" style="width: 100%; height: 200px;" placeholder="Paste PNR or screenshot of itinerary here"></textarea>
       <div style="display: flex; gap: 12px; margin-top: 1em;">
         <button class="button button-async" id="submitBtn" onclick="fetchFlightData()" data-loading="Converting…" data-state="default">
           <span><span class="button-async-label">Convert PNR</span></span>
@@ -1067,6 +1163,11 @@ el.style.whiteSpace = "nowrap";
     // Hide copy button before making fetch call
     document.getElementById("copyButton").style.display = "none";
 
+    // Show global spinner while waiting for conversion response
+    if (window.showLoadingOverlay) {
+      window.showLoadingOverlay("Converting PNR…", "Please wait");
+    }
+
     fetch("https://pnr-proxy.vercel.app/api/pnr", {
       method: "POST",
       headers: {
@@ -1080,6 +1181,8 @@ el.style.whiteSpace = "nowrap";
       window._latestApiResponse = data;
       console.log("Raw API Response:", data);
       submitBtn.classList.remove("button-async--loading");
+      if (window.hideLoadingOverlay) window.hideLoadingOverlay();
+      if (window.hideImageConvertOverlay) window.hideImageConvertOverlay();
       if (!data || !data.data || !Array.isArray(data.data.flights) || data.data.flights.length === 0) {
         const wrapper = document.getElementById("flightTableWrapper");
         const outputContainer = document.querySelector(".output-container");
@@ -1096,6 +1199,8 @@ el.style.whiteSpace = "nowrap";
     })
     .catch(err => {
       submitBtn.classList.remove("button-async--loading");
+      if (window.hideLoadingOverlay) window.hideLoadingOverlay();
+      if (window.hideImageConvertOverlay) window.hideImageConvertOverlay();
       console.error("Error:", err);
       document.getElementById("flightTableWrapper").innerHTML = '<p style="color:red;">Unexpected Error:<br>Load failed</p>';
     });
@@ -1462,8 +1567,187 @@ if (window.top === window.self) {
 
 </div>
 <footer style="margin-top: 48px; text-align: center; font-size: 8px; color: #888;">
-  Travel Tailor PNR Converter – Version 1.0.3
+  Travel Tailor PNR Converter – Version 1.1
 <br>
 </footer>
+
+  <!-- Image conversion overlay (shown when a screenshot is pasted) -->
+  <div id="imageConvertOverlay" class="image-convert-overlay" aria-hidden="true">
+    <div class="image-convert-card" role="status" aria-live="polite">
+      <div class="spinner"></div>
+      <div>
+        <div id="loadingOverlayTitle" style="font-weight:600; font-size:14px;">Converting image…</div>
+        <div id="loadingOverlaySubtitle" style="font-size:12px; opacity:0.8;">Extracting flight details</div>
+      </div>
+    </div>
+  </div>
+
+
+
+<script>
+(function () {
+  function showLoadingOverlay(title, subtitle) {
+    const overlay = document.getElementById("imageConvertOverlay");
+    if (!overlay) return;
+
+    const titleEl = document.getElementById("loadingOverlayTitle");
+    const subEl = document.getElementById("loadingOverlaySubtitle");
+
+    if (titleEl && title) titleEl.textContent = title;
+    if (subEl && subtitle) subEl.textContent = subtitle;
+
+    overlay.classList.add("is-visible");
+    overlay.setAttribute("aria-hidden", "false");
+  }
+
+  function hideLoadingOverlay() {
+    const overlay = document.getElementById("imageConvertOverlay");
+    if (!overlay) return;
+    overlay.classList.remove("is-visible");
+    overlay.setAttribute("aria-hidden", "true");
+  }
+
+  // Expose overlay helpers for other parts of the page
+  window.showLoadingOverlay = showLoadingOverlay;
+  window.hideLoadingOverlay = hideLoadingOverlay;
+
+  // Backwards-compatible helpers for the image paste flow
+  function showImageConvertOverlay() {
+    showLoadingOverlay("Converting image…", "Extracting flight details");
+  }
+
+  function hideImageConvertOverlay() {
+    hideLoadingOverlay();
+  }
+
+  
+
+  // Expose image overlay helpers globally (so other flows can hide/update it)
+  window.showImageConvertOverlay = showImageConvertOverlay;
+  window.hideImageConvertOverlay = hideImageConvertOverlay;
+function blobToDataURL(blob) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+  }
+
+  async function compressImageBlob(file, maxDim = 1600, quality = 0.85) {
+    // Convert blob -> data URL
+    const dataUrl = await blobToDataURL(file);
+
+    // Load into an Image so we can resize it
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = dataUrl;
+    });
+
+    // Scale down so the longest side is <= maxDim
+    let { width, height } = img;
+    const scale = Math.min(1, maxDim / Math.max(width, height));
+    width = Math.max(1, Math.round(width * scale));
+    height = Math.max(1, Math.round(height * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, width, height);
+
+    // JPEG is much smaller than PNG for screenshots
+    return canvas.toDataURL("image/jpeg", quality);
+  }
+
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const pnrInput = document.getElementById("pnrInput");
+    if (!pnrInput) return;
+
+    pnrInput.addEventListener("paste", async (e) => {
+      const items = e.clipboardData && e.clipboardData.items ? e.clipboardData.items : null;
+      if (!items) return;
+
+      // Only intercept image pastes. Text pastes behave normally.
+      const imageItem = Array.from(items).find((i) => i.type && i.type.startsWith("image/"));
+      if (!imageItem) return;
+
+      e.preventDefault();
+
+      const file = imageItem.getAsFile();
+      if (!file) return;
+
+      showImageConvertOverlay();
+
+      
+
+      // Ensure spinner text is correct for the image step (in case another flow changed it)
+      if (window.showLoadingOverlay) {
+        window.showLoadingOverlay("Converting image…", "Extracting flight details");
+      }
+try {
+        // For now: just demonstrate the image pipeline.
+        // Later you'll POST imageDataUrl to your proxy endpoint and receive Sabre text.
+        // eslint-disable-next-line no-unused-vars
+        const imageDataUrl = await compressImageBlob(file, 1600, 0.85);
+
+        // Convert pasted screenshot to Sabre-style text via your Vercel proxy
+        const resp = await fetch("https://travel-tailor-image-proxy.vercel.app/api/image-to-sabre", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageDataUrl })
+        });
+
+        let data = null;
+        try {
+          data = await resp.json();
+        } catch (e) {
+          data = null;
+        }
+
+        if (!resp.ok) {
+          const msg = (data && data.error) ? data.error : `Image conversion failed (HTTP ${resp.status})`;
+          throw new Error(msg);
+        }
+
+        let sabreText = data && data.sabreText ? String(data.sabreText) : "";
+
+        // Normalize odd newline symbols some clients may return
+        sabreText = sabreText
+          .replace(/\r/g, "")
+          .replace(/[↵]/g, "\n")
+          .trim();
+
+        if (!sabreText) throw new Error("No Sabre text returned from image conversion.");
+
+        pnrInput.value = sabreText;
+
+        // Auto-run existing PNR conversion after image conversion.
+        // Keep the overlay visible and update the text to reflect the next step.
+        window.__autoConvertFromImagePaste = true;
+        if (window.showLoadingOverlay) {
+          window.showLoadingOverlay("Converting PNR…", "Please wait");
+        }
+        fetchFlightData();
+        return; // fetchFlightData will hide the overlay when finished
+} catch (err) {
+        console.error("Image paste conversion failed:", err);
+        alert(`Could not process the pasted image.\n\n${err && err.message ? err.message : "Try a clearer screenshot."}`);
+      } finally {
+        // If we handed off to fetchFlightData(), it will manage/hide the overlay.
+        if (!window.__autoConvertFromImagePaste) {
+          hideImageConvertOverlay();
+        }
+        // Reset for next time
+        window.__autoConvertFromImagePaste = false;
+      }});
+  });
+})();
+</script>
+
 </body>
 </html>
